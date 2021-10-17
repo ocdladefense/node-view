@@ -5,6 +5,13 @@ export { CACHE, HISTORY, vNodeHistory };
 
 const CACHE = {};
 
+const HISTORY = {};
+
+let vNodeHistory = [];
+
+
+
+
 CACHE.set = function (key, value) {
     CACHE[key] = value;
 }
@@ -14,8 +21,7 @@ CACHE.get = function (key) {
 }
 
 
-const HISTORY = {};
-let vNodeHistory = [];
+
 
 HISTORY.set = function (index, vNode) {
     vNodeHistory[index] = vNode;
