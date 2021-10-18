@@ -1,6 +1,6 @@
 {
   "name": "@ocdladefense/view",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "Light-weight, custom vnode library.",
   "main": "view.js",
   "scripts": {

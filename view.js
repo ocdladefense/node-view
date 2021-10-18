@@ -9,7 +9,7 @@
 
 export { elem, linkContainer, vNode, createElement, render, updateElement, tree, parseComponent, nodeList, myAppEventHandler, getDefinedActions, addEvent, changeMainContainer, getMainContainer };
 
-import { CACHE, HISTORY, vNodeHistory } from 'cache.js';
+import { CACHE, HISTORY } from '/modules/events/node_modules/@ocdladefense/view/cache.js';
 
 
 
