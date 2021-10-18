@@ -1,5 +1,5 @@
 
-export { CACHE, HISTORY, vNodeHistory };
+export { CACHE, HISTORY };
 
 
 

@@ -387,6 +387,8 @@ function myAppEventHandler(e) {
         HISTORY.add(vNodes);
         updateElement(getMainContainer(), vNodes, currentVnodeState);
     });
+    
+    if(window)         window.scrollTo(0, 0);
 
     return false;
 }
