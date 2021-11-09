@@ -7,13 +7,24 @@
  *
  */
 
-export { elem, linkContainer, vNode, createElement, render, updateElement, tree, parseComponent, nodeList, myAppEventHandler, getDefinedActions, addEvent, changeMainContainer, getMainContainer };
+export { elem, linkContainer, vNode, createElement, render, updateElement, tree, parseComponent, nodeList, myAppEventHandler, getDefinedActions, addEvent, changeMainContainer, getMainContainer, postRenderEventHelper };
 
 import { CACHE, HISTORY } from './cache.js';
 
 
 
 const myEvents = {};
+
+
+/*
+domEvents = {
+    ".event-list-item": {
+        eventType: "click", 
+        callback: fn
+    }
+}
+*/
+const domEvents = {};
 
 let mainContainer;
 
@@ -95,14 +106,33 @@ function createElement(vnode) {
     }
 
     var $el = document.createElement(vnode.type);
-    
+    var theClassNames;
+    var theEventKey;
 
+    if (vnode.props) {
+        //var html5 = "className" == prop ? "class" : prop;
+        theClassNames = vnode.props["class"];
+        if (theClassNames) {
+            theClassNames = theClassNames.split(" "); //hack, get better way of obtaining names, this one only gets the first
+            theEventKey = theClassNames[0];    
+        }
+    }
+    
+    
     for(var prop in vnode.props) {
         var html5 = "className" == prop ? "class" : prop;
-        if (vnode.props[prop] === null) {
+        
+        if (prop[0] == "o" && prop[1] == "n" && theEventKey) {
+            preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
             continue;
         }
-        $el.setAttribute(html5,vnode.props[prop]);
+        else if (vnode.props[prop] === null) {
+            continue;
+        }
+        else {
+            $el.setAttribute(html5,vnode.props[prop]);
+        }
+        
     }
     
     if(null != vnode.children) {
@@ -113,8 +143,30 @@ function createElement(vnode) {
     return $el;
 }
 
+function preRenderEventHelper(selector, eventType, callback, type="class") {
+    
+    domEvents[selector] = {eventType: eventType, callback: callback, type: type};
+    
+}
 
 
+function postRenderEventHelper() {
+
+    for (var selector in domEvents) {
+        let obj = domEvents[selector];
+        let eventType = obj.eventType;
+        eventType = eventType.substring(2);
+        let callback = obj.callback;
+        let type = obj.type;
+        selector = type == "class" ? ("." + selector) : ("#" + selector);
+        let containers = document.querySelectorAll(selector);
+        for (let i = 0; i < containers.length; i++) {
+            containers[i].addEventListener(eventType, callback);
+        }
+    }
+}
+
+function resetDomEvents() {}
 
 
 
@@ -131,6 +183,7 @@ function render($container, newNode) {
     $containerClone.appendChild($newNode);
 
     $parent.replaceChild($containerClone, $container);
+    postRenderEventHelper();
 }
 
 
@@ -163,6 +216,7 @@ function updateElement($parent, newNode, oldNode, index = 0) {
         );
         }
     }
+    postRenderEventHelper();
 }
 
 
@@ -366,14 +420,17 @@ function loadTemplate(uri){
 
 // Main event handler for any view application.
 function myAppEventHandler(e) {
+    //console.log(e);
 
-    let target = e.target;
-    let eventId = target.dataset && target.dataset.eventId;
+    let target, actions, action, virtualNodes, currentVnodeState, details;
 
-    let actions = getDefinedActions();
-    let action = target.dataset.action;
-    let virtualNodes;
-    let currentVnodeState;
+
+    target = e.target;
+    actions = getDefinedActions();
+    details = e.frameworkDetail ? e.frameworkDetail : target.dataset;
+
+
+    action = (target.dataset && target.dataset.action) ? target.dataset.action : e.action;
 
     if (!actions.includes(action)) {
         return false;
@@ -381,14 +438,14 @@ function myAppEventHandler(e) {
     
     currentVnodeState = HISTORY.getRecent(0);
 
-    virtualNodes = myEvents[action](eventId);
+    virtualNodes = myEvents[action](details);
     
     virtualNodes.then(function(vNodes) {
         HISTORY.add(vNodes);
         updateElement(getMainContainer(), vNodes, currentVnodeState);
     });
     
-    if(window)         window.scrollTo(0, 0);
+    if(window){window.scrollTo(0, 0);}
 
     return false;
 }
