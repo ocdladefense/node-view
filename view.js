@@ -14,6 +14,7 @@ import { CACHE, HISTORY } from './cache.js';
 
 
 const myEvents = {};
+const myAfterEvents = {};
 
 
 /*
@@ -199,6 +200,7 @@ function updateElement($parent, newNode, oldNode, index = 0) {
             $parent.removeChild($parent.childNodes[index]);
         }
     } else if (changed(newNode, oldNode)) {
+        //need a forth option for element changed then swap, or if just attributes changed then just swap those out
         $parent.replaceChild(
         createElement(newNode),
         $parent.childNodes[index]
@@ -440,14 +442,15 @@ function myAppEventHandler(e) {
 
     virtualNodes = myEvents[action](details);
     
-    virtualNodes.then(function(vNodes) {
+    return virtualNodes.then(function(vNodes) {
         HISTORY.add(vNodes);
         updateElement(getMainContainer(), vNodes, currentVnodeState);
+        myAfterEvents[action]();
+        //trigger custom event, the name of action
+        //document.dispatchEvent(eval(action));
     });
-    
-    if(window){window.scrollTo(0, 0);}
 
-    return false;
+
 }
 
 
@@ -457,8 +460,20 @@ function getDefinedActions() {
     return Object.getOwnPropertyNames(myEvents);
 }
 
-function addEvent(key, result) {
+function addEvent(key, result, afterRenderEvent = function() {}) {
     myEvents[key] = result;
+    myAfterEvents[key] = afterRenderEvent;
+
+
+    /*if (afterRenderEvent) {
+        eval('var ' + key + ' = ' + ' new Event("afterRender") ' + ';');
+
+        document.addEventListener("afterRender", () => {
+            afterRenderEvent;
+        });
+    }*/
+    
+    
 }
 
 
