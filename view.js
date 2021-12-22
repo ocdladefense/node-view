@@ -7,7 +7,7 @@
  *
  */
 
-export { elem, linkContainer, vNode, createElement, render, updateElement, tree, parseComponent, nodeList, myAppEventHandler, getDefinedActions, addEvent, changeMainContainer, getMainContainer, postRenderEventHelper };
+export { elem, linkContainer, vNode, createElement, render, updateElement, tree, parseComponent, nodeList, myAppEventHandler, getDefinedActions, addEvent, changeMainContainer, getMainContainer, postRenderEventHelper, objectCombiner };
 
 import { CACHE, HISTORY } from './cache.js';
 
@@ -146,9 +146,10 @@ function createElement(vnode) {
 
 function preRenderEventHelper(selector, eventType, callback, selectorType="class") {
     if (domEvents[selector] == null) {
-        domEvents[selector] = [];
+        domEvents[selector] = {};
     }
-    domEvents[selector].push({eventType: eventType, callback: callback, selectorType: selectorType});
+    domEvents[selector][eventType.substring(2)] = {callback: callback, selectorType: selectorType};
+    //domEvents[selector].push({eventType: eventType, callback: callback, selectorType: selectorType});
     
 }
 
@@ -157,10 +158,11 @@ function postRenderEventHelper() {
 
     for (var selector in domEvents) {
         let eventsArray = domEvents[selector];
-        eventsArray.forEach(event => {
-            //let obj = domEvents[event];
-            let eventType = event.eventType;
-            eventType = eventType.substring(2);
+        for (var eventType in eventsArray) {
+            let event = eventsArray[eventType];
+        //eventsArray.forEach(event => {
+            //let eventType = event.eventType;
+            //eventType = eventType.substring(2);
             let callback = event.callback;
             let selectorType = event.selectorType;
             let domSelector = selectorType == "class" ? ("." + selector) : ("#" + selector);
@@ -168,12 +170,21 @@ function postRenderEventHelper() {
             for (let i = 0; i < containers.length; i++) {
                 containers[i].addEventListener(eventType, callback);
             }
-        });
+        };
     }
 }
 
 function resetDomEvents() {}
 
+
+
+function objectCombiner(obj1, obj2) {
+    for (var prop in obj2) {
+        obj1[prop] = obj2[prop];
+    }
+
+    return obj1;
+}
 
 
 /**
@@ -434,12 +445,10 @@ function myAppEventHandler(e) {
 
     target = e.target;
     actions = getDefinedActions();
-    details = e.frameworkDetail ? e.frameworkDetail : target.dataset;
+    details = e.frameworkDetail;
 
 
-    console.log(target.dataset);
-    console.log(e.action);
-    action = (target.dataset && target.dataset.action) ? target.dataset.action : e.action;
+    action = details.action;
 
     if (!actions.includes(action)) {
         return false;
