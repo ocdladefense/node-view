@@ -179,11 +179,15 @@ function resetDomEvents() {}
 
 
 function objectCombiner(obj1, obj2) {
+    let newObj = {};
+    for (var prop in obj1) {
+        newObj[prop] = obj1[prop];
+    }
     for (var prop in obj2) {
-        obj1[prop] = obj2[prop];
+        newObj[prop] = obj2[prop];
     }
 
-    return obj1;
+    return newObj;
 }
 
 
@@ -440,6 +444,7 @@ function loadTemplate(uri){
 function myAppEventHandler(e) {
     //console.log(e);
 
+
     let target, actions, action, virtualNodes, currentVnodeState, details;
 
 
@@ -458,13 +463,20 @@ function myAppEventHandler(e) {
 
     virtualNodes = myEvents[action](details);
     
-    return virtualNodes.then(function(vNodes) {
-        HISTORY.add(vNodes);
-        updateElement(getMainContainer(), vNodes, currentVnodeState);
-        myAfterEvents[action]();
-        //trigger custom event, the name of action
-        //document.dispatchEvent(eval(action));
-    });
+    try {
+        //to remove error if a nonpromise is returned because you just want to detect if something is clicked without rendering anything
+        //could maybe make it so other related errors dont pop up in debugger?
+        return virtualNodes.then(function(vNodes) {
+            HISTORY.add(vNodes);
+            updateElement(getMainContainer(), vNodes, currentVnodeState);
+            myAfterEvents[action]();
+        });
+    }
+    catch {
+        //console.log("non promise event was called");
+        return false;
+    }
+
 
 
 }
