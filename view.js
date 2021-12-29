@@ -7,7 +7,7 @@
  *
  */
 
-export { elem, linkContainer, vNode, createElement, render, updateElement, tree, parseComponent, nodeList, myAppEventHandler, getDefinedActions, addEvent, changeMainContainer, getMainContainer, postRenderEventHelper };
+export { elem, linkContainer, vNode, createElement, render, updateElement, tree, parseComponent, nodeList, myAppEventHandler, getDefinedActions, addEvent, changeMainContainer, getMainContainer, postRenderEventHelper, objectCombiner };
 
 import { CACHE, HISTORY } from './cache.js';
 
@@ -115,7 +115,7 @@ function createElement(vnode) {
         theClassNames = vnode.props["class"];
         if (theClassNames) {
             theClassNames = theClassNames.split(" "); //hack, get better way of obtaining names, this one only gets the first
-            theEventKey = theClassNames[0];    
+            theEventKey = theClassNames[0]; 
         }
     }
     
@@ -144,9 +144,12 @@ function createElement(vnode) {
     return $el;
 }
 
-function preRenderEventHelper(selector, eventType, callback, type="class") {
-    
-    domEvents[selector] = {eventType: eventType, callback: callback, type: type};
+function preRenderEventHelper(selector, eventType, callback, selectorType="class") {
+    if (domEvents[selector] == null) {
+        domEvents[selector] = {};
+    }
+    domEvents[selector][eventType.substring(2)] = {callback: callback, selectorType: selectorType};
+    //domEvents[selector].push({eventType: eventType, callback: callback, selectorType: selectorType});
     
 }
 
@@ -154,21 +157,38 @@ function preRenderEventHelper(selector, eventType, callback, type="class") {
 function postRenderEventHelper() {
 
     for (var selector in domEvents) {
-        let obj = domEvents[selector];
-        let eventType = obj.eventType;
-        eventType = eventType.substring(2);
-        let callback = obj.callback;
-        let type = obj.type;
-        selector = type == "class" ? ("." + selector) : ("#" + selector);
-        let containers = document.querySelectorAll(selector);
-        for (let i = 0; i < containers.length; i++) {
-            containers[i].addEventListener(eventType, callback);
-        }
+        let eventsArray = domEvents[selector];
+        for (var eventType in eventsArray) {
+            let event = eventsArray[eventType];
+        //eventsArray.forEach(event => {
+            //let eventType = event.eventType;
+            //eventType = eventType.substring(2);
+            let callback = event.callback;
+            let selectorType = event.selectorType;
+            let domSelector = selectorType == "class" ? ("." + selector) : ("#" + selector);
+            let containers = document.querySelectorAll(domSelector);
+            for (let i = 0; i < containers.length; i++) {
+                containers[i].addEventListener(eventType, callback);
+            }
+        };
     }
 }
 
 function resetDomEvents() {}
 
+
+
+function objectCombiner(obj1, obj2) {
+    let newObj = {};
+    for (var prop in obj1) {
+        newObj[prop] = obj1[prop];
+    }
+    for (var prop in obj2) {
+        newObj[prop] = obj2[prop];
+    }
+
+    return newObj;
+}
 
 
 /**
@@ -424,15 +444,16 @@ function loadTemplate(uri){
 function myAppEventHandler(e) {
     //console.log(e);
 
+
     let target, actions, action, virtualNodes, currentVnodeState, details;
 
 
     target = e.target;
     actions = getDefinedActions();
-    details = e.frameworkDetail ? e.frameworkDetail : target.dataset;
+    details = e.frameworkDetail;
 
 
-    action = (target.dataset && target.dataset.action) ? target.dataset.action : e.action;
+    action = details.action;
 
     if (!actions.includes(action)) {
         return false;
@@ -442,13 +463,20 @@ function myAppEventHandler(e) {
 
     virtualNodes = myEvents[action](details);
     
-    return virtualNodes.then(function(vNodes) {
-        HISTORY.add(vNodes);
-        updateElement(getMainContainer(), vNodes, currentVnodeState);
-        myAfterEvents[action]();
-        //trigger custom event, the name of action
-        //document.dispatchEvent(eval(action));
-    });
+    try {
+        //to remove error if a nonpromise is returned because you just want to detect if something is clicked without rendering anything
+        //could maybe make it so other related errors dont pop up in debugger?
+        return virtualNodes.then(function(vNodes) {
+            HISTORY.add(vNodes);
+            updateElement(getMainContainer(), vNodes, currentVnodeState);
+            myAfterEvents[action]();
+        });
+    }
+    catch {
+        //console.log("non promise event was called");
+        return false;
+    }
+
 
 
 }
