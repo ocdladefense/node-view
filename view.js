@@ -151,15 +151,15 @@ const View = (function() {
      *
      * @see-also https://medium.com/@deathmood/how-to-write-your-own-virtual-dom-ee74acc13060
      */
-    function render($container, newNode) {
-        let $containerClone = $container.cloneNode(false);
-        let $parent = $container.parentNode;
+    function render(vNode) {
+        let $clone = this.root.cloneNode(false);
+        let $parent = this.root.parentNode;
     
-        let $newNode = createElement(newNode);
-        $containerClone.appendChild($newNode);
+        let $newNode = createElement(vNode);
+        $clone.appendChild($newNode);
     
-        $parent.replaceChild($containerClone, $container);
-        postRenderEventHelper();
+        $parent.replaceChild($clone, this.root);
+        // postRenderEventHelper(); //@jbernal
     }
     
     
@@ -333,7 +333,7 @@ const View = (function() {
     }
 
     View.prototype = {
-
+        render: render
     };
     
 
