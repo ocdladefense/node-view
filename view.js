@@ -1,7 +1,7 @@
 /**
  * @ocdladefense/view
  *
- * @description
+ * @description Here is my description.
  *
  *
  *
@@ -13,7 +13,11 @@
  
  
 
-
+/** 
+ * @class View
+ * 
+ * This is a description of the View class.
+ */
 const View = (function() {
 
     
@@ -23,29 +27,13 @@ const View = (function() {
     
     const domEvents = {};
     
-    let root;
-
-    
-    function elem(elementName, attributes, text) {
-        var element = document.createElement(elementName);
-        
-        if(text != null)
-        {
-            element.appendChild(document.createTextNode(text));
-        }
-    
-        for(var prop in attributes)
-        {
-            var propName = prop == "className" ? "class" : prop;
-            
-            element.setAttribute(propName, attributes[prop]);
-        }
-    
-        return element;
-    }
-    
-
-    
+    /**
+     * @memberof View
+     * @method createElement
+     * @description Recursively transform a virtual node structure into a DOM node tree.
+     * @param {Object} vnode A virtual node structure.
+     * @returns DOMElement
+     */
     function createElement(vnode) {
         if(typeof vnode === "string") {
             return document.createTextNode(vnode);
@@ -103,9 +91,8 @@ const View = (function() {
         if (domEvents[selector] == null) {
             domEvents[selector] = {};
         }
-        domEvents[selector][eventType.substring(2)] = {callback: callback, selectorType: selectorType};
-        //domEvents[selector].push({eventType: eventType, callback: callback, selectorType: selectorType});
-        
+
+        domEvents[selector][eventType.substring(2)] = {callback: callback, selectorType: selectorType};    
     }
     
     
@@ -164,7 +151,10 @@ const View = (function() {
     
     
     
-    
+    /**
+     * A description of updateElement.
+     * @inner
+     */
     function updateElement($parent, newNode, oldNode, index = 0) {
         if (!oldNode) {
             $parent.appendChild(createElement(newNode));
@@ -202,9 +192,9 @@ const View = (function() {
     
     function changed(node1, node2) {
         return typeof node1 !== typeof node2 ||
-                typeof node1 === 'string' && node1 !== node2 ||
-                node1.type !== node2.type ||
-                propsChanged(node1, node2);
+            typeof node1 === 'string' && node1 !== node2 ||
+            node1.type !== node2.type ||
+            propsChanged(node1, node2);
     }
     
     
@@ -313,21 +303,13 @@ const View = (function() {
     function addEvent(key, result, afterRenderEvent = function() {}) {
         myEvents[key] = result;
         myAfterEvents[key] = afterRenderEvent;
-    
-    
-        /*if (afterRenderEvent) {
-            eval('var ' + key + ' = ' + ' new Event("afterRender") ' + ';');
-    
-            document.addEventListener("afterRender", () => {
-                afterRenderEvent;
-            });
-        }*/
-        
-        
     }
     
 
-
+    /**
+     * @constructs View
+     * @param root
+     */
     function View(root) {
         this.root = root;
     }
@@ -342,7 +324,12 @@ const View = (function() {
 
 
 
-
+/**
+ * Return a View instance from the given DOM element or selector.
+ * 
+ * @param {string} selector 
+ * @returns {View}
+ */
 View.createRoot = function(selector) {
     let root = typeof selector == "string" ? document.querySelector(selector) : selector;
     return new View(root);
@@ -350,7 +337,9 @@ View.createRoot = function(selector) {
     
 
 
-
+/** 
+ * JSX parsing function.
+ */
 function vNode(name,attributes,...children) {
     let joined = [];
     if(children.length == 0 || null == children[0] || typeof children[0] == "undefined") {
@@ -378,6 +367,3 @@ function vNode(name,attributes,...children) {
     
     return vnode;
 }
-
-
-    
