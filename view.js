@@ -30,6 +30,7 @@ const View = (function() {
     /**
      * @memberof View
      * @method createElement
+     * @instance
      * @description Recursively transform a virtual node structure into a DOM node tree.
      * @param {Object} vnode A virtual node structure.
      * @returns DOMElement
@@ -133,10 +134,13 @@ const View = (function() {
     }
     
     
+    
     /**
-     * Method for virtual nodes
-     *
-     * @see-also https://medium.com/@deathmood/how-to-write-your-own-virtual-dom-ee74acc13060
+     * @memberof View
+     * @method render
+     * @instance
+     * @description Perform an initial paint of a virtual node structure.
+     * @param {Object} vNode A virtual node structure.
      */
     function render(vNode) {
         let $clone = this.root.cloneNode(false);
@@ -152,8 +156,14 @@ const View = (function() {
     
     
     /**
-     * A description of updateElement.
-     * @inner
+     * @memberof View
+     * @method updateElement
+     * @instance
+     * @description Perform an initial paint of a virtual node structure.
+     * @param {DOMNode} $parent
+     * @param {vNode} newNode Then new virtual node tree to be rendered.
+     * @param {vNode} oldNode The old virtual node tree to be diffed.
+     * @param {Integer} index The current index of a recursive structure.
      */
     function updateElement($parent, newNode, oldNode, index = 0) {
         if (!oldNode) {
