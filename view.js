@@ -27,63 +27,7 @@ const View = (function() {
     
     const domEvents = {};
     
-    /**
-     * @memberof View
-     * @method createElement
-     * @instance
-     * @description Recursively transform a virtual node structure into a DOM node tree.
-     * @param {Object} vnode A virtual node structure.
-     * @returns DOMElement
-     */
-    function createElement(vnode) {
-        if(typeof vnode === "string") {
-            return document.createTextNode(vnode);
-        }
-        if(vnode.type == "text") {
-            return document.createTextNode(vnode.children);
-        }
-        if(typeof vnode.type == "function") {
-            let temp = vnode.type(vnode.props);
-            return createElement(temp);
-        }
-    
-        var $el = document.createElement(vnode.type);
-        var theClassNames;
-        var theEventKey;
-    
-        if (vnode.props) {
-            //var html5 = "className" == prop ? "class" : prop;
-            theClassNames = vnode.props["class"];
-            if (theClassNames) {
-                theClassNames = theClassNames.split(" "); //hack, get better way of obtaining names, this one only gets the first
-                theEventKey = theClassNames[0]; 
-            }
-        }
-        
-        
-        for(var prop in vnode.props) {
-            var html5 = "className" == prop ? "class" : prop;
-            
-            if (prop[0] == "o" && prop[1] == "n" && theEventKey) {
-                preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
-                continue;
-            }
-            else if (vnode.props[prop] === null) {
-                continue;
-            }
-            else {
-                $el.setAttribute(html5,vnode.props[prop]);
-            }
-            
-        }
-        
-        if(null != vnode.children) {
-            vnode.children.map(createElement)
-                .forEach($el.appendChild.bind($el));
-        }
-        
-        return $el;
-    }
+
     
 
 
@@ -346,6 +290,65 @@ View.createRoot = function(selector) {
 };
     
 
+
+/**
+ * @memberof View
+ * @method createElement
+ * @description Recursively transform a virtual node structure into a DOM node tree.
+ * @param {Object} vnode A virtual node structure.
+ * @returns DOMElement
+ */
+function createElement(vnode) {
+    if(typeof vnode === "string") {
+        return document.createTextNode(vnode);
+    }
+    if(vnode.type == "text") {
+        return document.createTextNode(vnode.children);
+    }
+    if(typeof vnode.type == "function") {
+        let temp = vnode.type(vnode.props);
+        return createElement(temp);
+    }
+
+    var $el = document.createElement(vnode.type);
+    var theClassNames;
+    var theEventKey;
+
+    if (vnode.props) {
+        //var html5 = "className" == prop ? "class" : prop;
+        theClassNames = vnode.props["class"];
+        if (theClassNames) {
+            theClassNames = theClassNames.split(" "); //hack, get better way of obtaining names, this one only gets the first
+            theEventKey = theClassNames[0]; 
+        }
+    }
+    
+    
+    for(var prop in vnode.props) {
+        var html5 = "className" == prop ? "class" : prop;
+        
+        if (prop[0] == "o" && prop[1] == "n" && theEventKey) {
+            preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
+            continue;
+        }
+        else if (vnode.props[prop] === null) {
+            continue;
+        }
+        else {
+            $el.setAttribute(html5,vnode.props[prop]);
+        }
+        
+    }
+    
+    if(null != vnode.children) {
+        vnode.children.map(createElement)
+            .forEach($el.appendChild.bind($el));
+    }
+    
+    return $el;
+};
+
+View.createElement = createElement;
 
 /** 
  * JSX parsing function.
