@@ -305,9 +305,17 @@ function createElement(vnode) {
     if(vnode.type == "text") {
         return document.createTextNode(vnode.children);
     }
+    if(typeof vnode.type == "function" && vnode.type.prototype && vnode.type.prototype.render) {
+        console.log("vNode is a class reference");
+        let obj = new vnode.type(vnode.props);
+        let node = createElement(obj.render());
+        // Let the component know about its own root.
+        obj.setRoot(node);
+        return node;
+    }
     if(typeof vnode.type == "function") {
         let temp = vnode.type(vnode.props);
-        return createElement(temp);
+        createElement(temp);
     }
 
     var $el = document.createElement(vnode.type);
