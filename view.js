@@ -95,7 +95,7 @@
  
  
  function createElement(vnode) {
-     if(typeof vnode === "string") {
+     if(typeof vnode === "string" || typeof vnode === "number") {
          return document.createTextNode(vnode);
      }
      if(vnode.type == "text") {
