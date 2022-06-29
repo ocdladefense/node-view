@@ -1,15 +1,19 @@
 {
   "name": "@ocdladefense/view",
   "version": "1.0.9",
-  "description": "Light-weight, custom vnode library.",
+  "author": {
+    "name": "José Bernal, Isaac Walters"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Light-weight, custom virtual-node library.",
+  "devDependencies": {},
+  "keywords": [],
+  "license": "ISC",
   "main": "view.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "José Bernal, Isaac Walters",
-  "license": "ISC",
-  "type": "module",
-  "dependencies": {},
-  "devDependencies": {}
+  "type": "module"
 }
