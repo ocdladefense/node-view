@@ -315,7 +315,7 @@ function createElement(vnode) {
     }
     if(typeof vnode.type == "function") {
         let temp = vnode.type(vnode.props);
-        createElement(temp);
+        return createElement(temp);
     }
 
     var $el = document.createElement(vnode.type);
