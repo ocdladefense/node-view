@@ -10,8 +10,7 @@
  export { vNode, View };
 
  import { CACHE, HISTORY } from './cache.js';
- 
- 
+
 
 /** 
  * @class View
@@ -28,6 +27,56 @@ const View = (function() {
     const domEvents = {};
     
 
+    const CACHE = {};
+
+    const HISTORY = {};
+    
+    let vNodeHistory = [];
+
+    let historyUserIndex = 0; //IW - to keep track of what part of the history the user is in, in case they want to go back or forward?
+    
+    //IW - to store stuff throughout the history so that you can access it at any point
+    CACHE.set = function (key, value) {
+        CACHE[key] = value;
+    }
+    
+    CACHE.get = function (key) {
+        return CACHE[key];
+    }
+
+    //IW - this one shouldnt be used because it would just replace the one at the index
+    HISTORY.set = function (index, vNode) {
+        vNodeHistory[index] = vNode;
+    }
+    
+    //IW - The main function for adding things to the history
+    HISTORY.add = function (newVnode) {
+        vNodeHistory.push(newVnode);
+    };
+    
+    //IW - if you dont want the user to be able to go back
+    HISTORY.clear = function () {
+        vNodeHistory = [];
+    }
+    
+    //IW - if backwardsIndex is 0 it is the most recent history (the one already rendered)
+    HISTORY.getRecent = function (backwardsIndex) {
+        return vNodeHistory[vNodeHistory.length - (1 + backwardsIndex)];
+    }
+    
+    //IW - the preveous function but it only returns the previous history
+    HISTORY.getLast = function () {
+        return vNodeHistory[vNodeHistory.length - 1];
+    }
+    
+    //IW - Im not sure the use case for this one
+    HISTORY.getLength = function () {
+        return vNodeHistory.length;
+    }
+    
+    
+    
+    
     
 
 
@@ -37,12 +86,18 @@ const View = (function() {
             domEvents[selector] = {};
         }
 
-        domEvents[selector][eventType.substring(2)] = {callback: callback, selectorType: selectorType};    
+        domEvents[selector][eventType.substring(2)] = {callback: callback, selectorType: selectorType};
+    }
+
+
+    function getEvents() {
+        return domEvents;
     }
     
     
     function postRenderEventHelper() {
     
+        //IW - goes through all dom objects that have an even, then goes through each event for that object, like if it had an onclick and an onchange(, then adds it to all its children?)
         for (var selector in domEvents) {
             let eventsArray = domEvents[selector];
             for (var eventType in eventsArray) {
@@ -64,7 +119,7 @@ const View = (function() {
     
     
     
-    
+    //IW - might be left over from what view.js was before
     function objectCombiner(obj1, obj2) {
         let newObj = {};
         for (var prop in obj1) {
@@ -89,12 +144,17 @@ const View = (function() {
     function render(vNode) {
         let $clone = this.root.cloneNode(false);
         let $parent = this.root.parentNode;
-    
-        let $newNode = createElement(vNode);
+        //let renderer = createElement.bind(this);
+        let $newNode = this.createElement(vNode);
         $clone.appendChild($newNode);
     
         $parent.replaceChild($clone, this.root);
         // postRenderEventHelper(); //@jbernal
+
+        this.root = $clone;
+        this.root.addEventListener("click", myAppEventHandler);
+        //BACKTO
+        HISTORY.add($parent); //might not be the correct one to add, also might not be correct using add instead of starting new
     }
     
     
@@ -137,10 +197,76 @@ const View = (function() {
                 );
             }
         }
+        //HISTORY.add($parent); //need it to be in an area where it will only get called once
         postRenderEventHelper();
     }
     
-    
+    /**
+     * @memberof View
+     * @method createElement
+     * @description Recursively transform a virtual node structure into a DOM node tree.
+     * @param {Object} vnode A virtual node structure.
+     * @returns DOMElement
+     */
+    function createElement(vnode) {
+        if(typeof vnode === "string") {
+            return document.createTextNode(vnode);
+        }
+        if(vnode.type == "text") {
+            return document.createTextNode(vnode.children);
+        }
+        //first check to see if component references a class name
+        if(typeof vnode.type == "function" && vnode.type.prototype && vnode.type.prototype.render) {
+            console.log("vNode is a class reference");
+            let obj = new vnode.type(vnode.props);
+            let node = this.createElement(obj.render());
+            //BACKTO
+            // Let the component know about its own root.
+            obj.setRoot(node);
+            return node;
+        }
+        if(typeof vnode.type == "function") {
+            let fn = vnode.type(vnode.props);
+            return this.createElement(fn);
+        }
+
+        var $el = document.createElement(vnode.type);
+        var theClassNames;
+        var theEventKey;
+
+        if (vnode.props) {
+            //var html5 = "className" == prop ? "class" : prop;
+            theClassNames = vnode.props["class"];
+            if (theClassNames) {
+                theClassNames = theClassNames.split(" "); //hack, get better way of obtaining names, this one only gets the first
+                theEventKey = theClassNames[0]; 
+            }
+        }
+        
+        //BACKTO
+        for(var prop in vnode.props) {
+            var html5 = "className" == prop ? "class" : prop;
+            if (prop[0] == "o" && prop[1] == "n" && theEventKey) {
+                $el.addEventListener(prop.substring(2), vnode.props[prop]);
+                //preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
+                continue;
+            }
+            else if (vnode.props[prop] === null) {
+                continue;
+            }
+            else {
+                $el.setAttribute(html5,vnode.props[prop]);
+            }
+            
+        }
+        
+        if(null != vnode.children) {
+            vnode.children.map(this.createElement.bind(this))
+                .forEach($el.appendChild.bind($el));
+        }
+        
+        return $el;
+    };
     
     
     
@@ -189,7 +315,7 @@ const View = (function() {
     
     
     
-    
+    //IW - not used?
     function props(props){
         var p = {};
         for(var i = 0; i<props.length; i++){
@@ -207,7 +333,7 @@ const View = (function() {
     // Main event handler for any view application.
     function myAppEventHandler(e) {
         //console.log(e);
-    
+        e.preventDefault(); //added to prevent a link from taking you somewhere
     
         let target, actions, action, virtualNodes, currentVnodeState, details;
     
@@ -223,7 +349,7 @@ const View = (function() {
             return false;
         }
         
-        currentVnodeState = HISTORY.getRecent(0);
+        currentVnodeState = HISTORY.getRecent(0); //BACKTO
     
         virtualNodes = myEvents[action](details);
         
@@ -255,9 +381,13 @@ const View = (function() {
     }
     
     function addEvent(key, result, afterRenderEvent = function() {}) {
+        //console.log(this.root); //using the root here might not work if it gets changed
+        //this.root.addEventListener("click", myAppEventHandler);
+
         myEvents[key] = result;
         myAfterEvents[key] = afterRenderEvent;
     }
+
     
 
     /**
@@ -266,10 +396,18 @@ const View = (function() {
      */
     function View(root) {
         this.root = root;
+
+
+        //document.getElementById("order-history-main").addEventListener("click", myAppEventHandler);
+        //root.addEventListener("click", myAppEventHandler);
     }
 
     View.prototype = {
-        render: render
+        render: render,
+        addEvent: addEvent,
+        preRenderEventHelper: preRenderEventHelper,
+        createElement: createElement,
+        getEvents, getEvents
     };
     
 
@@ -305,17 +443,19 @@ function createElement(vnode) {
     if(vnode.type == "text") {
         return document.createTextNode(vnode.children);
     }
+    //first check to see if component references a class name
     if(typeof vnode.type == "function" && vnode.type.prototype && vnode.type.prototype.render) {
         console.log("vNode is a class reference");
         let obj = new vnode.type(vnode.props);
         let node = createElement(obj.render());
+        //BACKTO
         // Let the component know about its own root.
         obj.setRoot(node);
         return node;
     }
     if(typeof vnode.type == "function") {
-        let temp = vnode.type(vnode.props);
-        return createElement(temp);
+        let fn = vnode.type(vnode.props);
+        return createElement(fn);
     }
 
     var $el = document.createElement(vnode.type);
@@ -331,12 +471,12 @@ function createElement(vnode) {
         }
     }
     
-    
+    //BACKTO
     for(var prop in vnode.props) {
         var html5 = "className" == prop ? "class" : prop;
         
         if (prop[0] == "o" && prop[1] == "n" && theEventKey) {
-            preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
+            this.preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
             continue;
         }
         else if (vnode.props[prop] === null) {
