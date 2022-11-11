@@ -152,7 +152,7 @@ const View = (function() {
         // postRenderEventHelper(); //@jbernal
 
         this.root = $clone;
-        this.root.addEventListener("click", myAppEventHandler);
+        // this.root.addEventListener("click", myAppEventHandler);
         //BACKTO
         HISTORY.add($parent); //might not be the correct one to add, also might not be correct using add instead of starting new
     }
