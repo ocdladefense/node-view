@@ -142,23 +142,39 @@ const View = (function() {
      * @param {Object} vNode A virtual node structure.
      */
     function render(vNode) {
-        let $clone = this.root.cloneNode(false);
-        let $parent = this.root.parentNode;
+        // let $parent = this.root;
+
         //let renderer = createElement.bind(this);
-        let $newNode = this.createElement(vNode);
-        $clone.appendChild($newNode);
-    
-        $parent.replaceChild($clone, this.root);
+
+        this.currentTree = vNode;
+        let $newNode = createElement(vNode);
+
+        this.root.appendChild($newNode);
+        
+        // $parent.replaceChild($clone, this.root);
         // postRenderEventHelper(); //@jbernal
 
-        this.root = $clone;
+        // this.root = $clone;
         // this.root.addEventListener("click", myAppEventHandler);
         //BACKTO
-        HISTORY.add($parent); //might not be the correct one to add, also might not be correct using add instead of starting new
+        // HISTORY.add($parent); //might not be the correct one to add, also might not be correct using add instead of starting new
     }
     
     
-    
+    function update(newNode) {
+
+
+        console.log(newNode.type(newNode.props));
+
+        let oldNode = this.currentTree;
+        this.currentTree = newNode;
+
+
+        updateElement(this.root,newNode,oldNode);
+    }
+
+
+
     /**
      * @memberof View
      * @method updateElement
@@ -170,37 +186,58 @@ const View = (function() {
      * @param {Integer} index The current index of a recursive structure.
      */
     function updateElement($parent, newNode, oldNode, index = 0) {
-        if (!oldNode) {
+
+
+
+        if(!oldNode) {
             $parent.appendChild(createElement(newNode));
-        } else if (!newNode) {
+        }
+        else if(!newNode) {
             if (!$parent.childNodes[index]) {
                 $parent.removeChild($parent.childNodes[$parent.childNodes.length-1]);
             } else {
                 $parent.removeChild($parent.childNodes[index]);
             }
-        } else if (changed(newNode, oldNode)) {
-            //need a forth option for element changed then swap, or if just attributes changed then just swap those out
-            $parent.replaceChild(
-            createElement(newNode),
-            $parent.childNodes[index]
-            );
-        } else if (newNode.type) {
-            const newLength = newNode.children.length;
-            const oldLength = oldNode.children.length;
-            for (let i = 0; i < newLength || i < oldLength; i++) {
+        }
+        else if((typeof newNode.type !== "function") && changed(newNode,oldNode)) {
             
-                updateElement(
-                    $parent.childNodes[index],
-                    newNode.children[i],
-                    oldNode.children[i],
-                    i
-                );
-            }
+            // newNode = typeof newNode.type === "function" ? newNode.type(newNode.props) : newNode;
+            // oldNode = typeof oldNode.type === "function" ? oldNode.type(oldNode.props) : oldNode;
+            // Need a forth option for element changed then swap, or if just attributes changed then just swap those out
+            console.log($parent.children[index]);
+            $parent.replaceChild(
+                createElement(newNode),
+                $parent.children[index]
+            );
+        }
+        else if(newNode.type) {
+
+            if(typeof newNode.type === "function") {
+                newNode = typeof newNode.type === "function" ? newNode.type(newNode.props) : newNode;
+                oldNode = typeof oldNode.type === "function" ? oldNode.type(oldNode.props) : oldNode;
+                updateElement($parent, newNode, oldNode, index);
+            } else {
+                console.log($parent.children[index],newNode,oldNode);
+
+                const newLength = newNode.children.length;
+                const oldLength = oldNode.children.length;
+                for (let i = 0; i < newLength || i < oldLength; i++) {
+                
+                    updateElement(
+                        $parent.children[index],
+                        newNode.children[i],
+                        oldNode.children[i],
+                        i
+                    );
+                }
+            } // end else
         }
         //HISTORY.add($parent); //need it to be in an area where it will only get called once
-        postRenderEventHelper();
+        // postRenderEventHelper();
     }
     
+
+
     /**
      * @memberof View
      * @method createElement
@@ -219,7 +256,7 @@ const View = (function() {
         if(typeof vnode.type == "function" && vnode.type.prototype && vnode.type.prototype.render) {
             console.log("vNode is a class reference");
             let obj = new vnode.type(vnode.props);
-            let node = this.createElement(obj.render());
+            let node = createElement(obj.render());
             //BACKTO
             // Let the component know about its own root.
             obj.setRoot(node);
@@ -227,7 +264,7 @@ const View = (function() {
         }
         if(typeof vnode.type == "function") {
             let fn = vnode.type(vnode.props);
-            return this.createElement(fn);
+            return createElement(fn);
         }
 
         var $el = document.createElement(vnode.type);
@@ -239,14 +276,14 @@ const View = (function() {
             theClassNames = vnode.props["class"];
             if (theClassNames) {
                 theClassNames = theClassNames.split(" "); //hack, get better way of obtaining names, this one only gets the first
-                theEventKey = theClassNames[0]; 
+                // theEventKey = theClassNames[0]; 
             }
         }
         
         //BACKTO
         for(var prop in vnode.props) {
             var html5 = "className" == prop ? "class" : prop;
-            if (prop[0] == "o" && prop[1] == "n" && theEventKey) {
+            if (prop.indexOf("on") === 0) {
                 $el.addEventListener(prop.substring(2), vnode.props[prop]);
                 //preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
                 continue;
@@ -261,7 +298,7 @@ const View = (function() {
         }
         
         if(null != vnode.children) {
-            vnode.children.map(this.createElement.bind(this))
+            vnode.children.map(createElement.bind(this))
                 .forEach($el.appendChild.bind($el));
         }
         
@@ -273,14 +310,14 @@ const View = (function() {
     function changed(node1, node2) {
         return typeof node1 !== typeof node2 ||
             typeof node1 === 'string' && node1 !== node2 ||
-            node1.type !== node2.type ||
-            propsChanged(node1, node2);
+            node1.type !== node2.type || propsChanged(node1,node2);
     }
     
     
     
         
     function propsChanged(node1, node2) {
+
         let node1Props = node1.props;
         let node2Props = node2.props;
     
@@ -396,14 +433,13 @@ const View = (function() {
      */
     function View(root) {
         this.root = root;
-
-
         //document.getElementById("order-history-main").addEventListener("click", myAppEventHandler);
         //root.addEventListener("click", myAppEventHandler);
     }
 
     View.prototype = {
         render: render,
+        update: update,
         addEvent: addEvent,
         preRenderEventHelper: preRenderEventHelper,
         createElement: createElement,
@@ -467,7 +503,7 @@ function createElement(vnode) {
         theClassNames = vnode.props["class"];
         if (theClassNames) {
             theClassNames = theClassNames.split(" "); //hack, get better way of obtaining names, this one only gets the first
-            theEventKey = theClassNames[0]; 
+            // theEventKey = theClassNames[0]; 
         }
     }
     
@@ -475,8 +511,9 @@ function createElement(vnode) {
     for(var prop in vnode.props) {
         var html5 = "className" == prop ? "class" : prop;
         
-        if (prop[0] == "o" && prop[1] == "n" && theEventKey) {
-            this.preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
+        if (prop.indexOf("on") === 0) {
+            // this.preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
+            $el.addEventListener(prop.substring(2), vnode.props[prop]);
             continue;
         }
         else if (vnode.props[prop] === null) {
@@ -485,7 +522,6 @@ function createElement(vnode) {
         else {
             $el.setAttribute(html5,vnode.props[prop]);
         }
-        
     }
     
     if(null != vnode.children) {
