@@ -201,10 +201,6 @@ const View = (function() {
         }
         else if((typeof newNode.type !== "function") && changed(newNode,oldNode)) {
             
-            // newNode = typeof newNode.type === "function" ? newNode.type(newNode.props) : newNode;
-            // oldNode = typeof oldNode.type === "function" ? oldNode.type(oldNode.props) : oldNode;
-            // Need a forth option for element changed then swap, or if just attributes changed then just swap those out
-            console.log($parent.children[index]);
             $parent.replaceChild(
                 createElement(newNode),
                 $parent.children[index]
@@ -217,7 +213,6 @@ const View = (function() {
                 oldNode = typeof oldNode.type === "function" ? oldNode.type(oldNode.props) : oldNode;
                 updateElement($parent, newNode, oldNode, index);
             } else {
-                console.log($parent.children[index],newNode,oldNode);
 
                 const newLength = newNode.children.length;
                 const oldLength = oldNode.children.length;
