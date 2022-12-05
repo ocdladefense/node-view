@@ -7,3 +7,7 @@ Node-view is a front-end rendering library. The rendering engine is based on the
 * Implement update method for components.
 
 ### 2.2.1
+
+
+### Author
+José Bernal and Isaac Walters.
