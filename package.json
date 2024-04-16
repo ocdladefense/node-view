@@ -1,6 +1,6 @@
 {
-  "name": "@ocdladefense/view",
-  "version": "2.3.0",
+  "name": "@ocdla/view",
+  "version": "2.3.1",
   "description": "Light-weight, virtual node library.",
   "main": "view.js",
   "scripts": {
