@@ -26,7 +26,6 @@ const View = (function() {
     
     const domEvents = {};
     
-
     const CACHE = {};
 
     const HISTORY = {};
@@ -34,6 +33,8 @@ const View = (function() {
     let vNodeHistory = [];
 
     let historyUserIndex = 0; //IW - to keep track of what part of the history the user is in, in case they want to go back or forward?
+
+    const NODE_CHANGED_STATES = ["NODE_NO_COMPARISON", "NODE_DIFFERENT_TYPE", "NODE_NOT_EQUAL", "NODE_DIFFERENT_ELEMENT", "NODE_PROPS_CHANGED", "TEXT_NODES_NOT_EQUAL"];
     
     //IW - to store stuff throughout the history so that you can access it at any point
     CACHE.set = function (key, value) {
@@ -163,14 +164,9 @@ const View = (function() {
     
     function update(newNode) {
 
+        updateElement(this.root, newNode, this.currentTree);
 
-        console.log(newNode.type(newNode.props));
-
-        let oldNode = this.currentTree;
         this.currentTree = newNode;
-
-
-        updateElement(this.root,newNode,oldNode);
     }
 
 
@@ -187,50 +183,150 @@ const View = (function() {
      */
     function updateElement($parent, newNode, oldNode, index = 0) {
 
+        let state = getChangeState(newNode, oldNode);
 
+        // Whether to use replaceChild to swap nodes.
+        let shouldSwapNodes = changed(state);
+
+        // Whether this current evaluation is a synthetic node.
+        let isSynthetic = typeof newNode.type === "function";
+
+        
 
         if(!oldNode) {
-            $parent.appendChild(createElement(newNode));
+            let n = createElement(newNode);
+            $parent.appendChild(n);
         }
+
+
         else if(!newNode) {
-            if (!$parent.childNodes[index]) {
-                $parent.removeChild($parent.childNodes[$parent.childNodes.length-1]);
+            if (!$parent.children[index]) {
+                $parent.removeChild($parent.children[$parent.children.length-1]);
             } else {
-                $parent.removeChild($parent.childNodes[index]);
+                $parent.removeChild($parent.children[index]);
             }
         }
-        else if((typeof newNode.type !== "function") && changed(newNode,oldNode)) {
-            
-            $parent.replaceChild(
-                createElement(newNode),
-                $parent.children[index]
-            );
+
+
+        else if(isSynthetic) {
+            newNode = typeof newNode.type === "function" ? newNode.type(newNode.props) : newNode;
+            oldNode = typeof oldNode.type === "function" ? oldNode.type(oldNode.props) : oldNode;
+            updateElement($parent, newNode, oldNode, index);
         }
+
+
+        else if(!isSynthetic && shouldSwapNodes) {
+            let n = createElement(newNode);
+
+            if(newNode.type) {
+                $parent.replaceChild(n, $parent.children[index]); 
+            } else {
+                $parent.replaceChild(n, $parent.childNodes[index]);
+            }
+            
+        }
+
+        // Not obvious, but next nodes don't have a type and should
+        // have been handled before this block executes.
         else if(newNode.type) {
 
-            if(typeof newNode.type === "function") {
-                newNode = typeof newNode.type === "function" ? newNode.type(newNode.props) : newNode;
-                oldNode = typeof oldNode.type === "function" ? oldNode.type(oldNode.props) : oldNode;
-                updateElement($parent, newNode, oldNode, index);
-            } else {
+            const newLength = newNode.children.length;
+            const oldLength = oldNode.children.length;
 
-                const newLength = newNode.children.length;
-                const oldLength = oldNode.children.length;
-                for (let i = 0; i < newLength || i < oldLength; i++) {
-                
-                    updateElement(
-                        $parent.children[index],
-                        newNode.children[i],
-                        oldNode.children[i],
-                        i
-                    );
+            for (let i = 0; i < newLength || i < oldLength; i++) {
+                let newParent = $parent.childNodes[index];
+
+                // At this point, any text nodes represent static text on the page.
+                if(newParent.nodeType == 3) {
+                    index++;
+                    continue;
                 }
-            } // end else
+                let nodeNew = newNode.children[i];
+                let nodeOld = oldNode.children[i];
+                
+                let equal = nodeNew == nodeOld;
+                if(equal) continue;
+
+                updateElement(
+                    newParent,
+                    nodeNew,
+                    nodeOld,
+                    i
+                );
+            }
         }
-        //HISTORY.add($parent); //need it to be in an area where it will only get called once
-        // postRenderEventHelper();
     }
     
+
+
+
+    function getChangeState(n1, n2) {
+
+        if(n1 && !n2) return "NODE_NO_COMPARISON";
+
+        if(n1 == n2) return "NODE_NO_CHANGE";
+
+        // Comparing two text nodes that are obviously different.
+        if(typeof n1 === "string" && typeof n2 === "string" && n1 !== n2) {
+            return "TEXT_NODES_NOT_EQUAL";
+        }
+
+        if(typeof n1 !== typeof n2) {
+            return "NODE_DIFFERENT_TYPE";
+        }
+        
+        if(n1.type !== n2.type) {
+            return "NODE_DIFFERENT_ELEMENT";
+        }
+
+        if(propsChanged(n1, n2)) {
+            return "NODE_PROPS_CHANGED";
+        }
+
+        if(n1 != n2) {
+            return "NODE_RECURSIVE_EVALUATE";
+        }
+        
+        return "NODE_NO_CHANGE";
+    }
+
+
+    function changed(state) {
+
+        return NODE_CHANGED_STATES.includes(state);
+    }
+
+    function propsChanged(node1, node2) {
+
+        let node1Props = node1.props;
+        let node2Props = node2.props;
+    
+        if (typeof node1Props != typeof node2Props) {
+            return true;
+        }
+    
+        if (!node1Props && !node2Props) {
+            return false;
+        }
+    
+        let aProps = Object.getOwnPropertyNames(node1Props);
+        let bProps = Object.getOwnPropertyNames(node2Props);
+    
+        
+        if (aProps.length != bProps.length) {
+            return true;
+        }
+    
+        for (let i = 0; i < aProps.length; i++) {
+            let propName = aProps[i];
+    
+            if (node1Props[propName] !== node2Props[propName]) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
 
     /**
@@ -302,45 +398,12 @@ const View = (function() {
     
     
     
-    function changed(node1, node2) {
-        return typeof node1 !== typeof node2 ||
-            typeof node1 === 'string' && node1 !== node2 ||
-            node1.type !== node2.type || propsChanged(node1,node2);
-    }
-    
-    
-    
-        
-    function propsChanged(node1, node2) {
 
-        let node1Props = node1.props;
-        let node2Props = node2.props;
     
-        if (typeof node1Props != typeof node2Props) {
-            return true;
-        }
     
-        if (!node1Props && !node2Props) {
-            return false;
-        }
-    
-        let aProps = Object.getOwnPropertyNames(node1Props);
-        let bProps = Object.getOwnPropertyNames(node2Props);
     
         
-        if (aProps.length != bProps.length) {
-            return true;
-        }
-    
-        for (let i = 0; i < aProps.length; i++) {
-            let propName = aProps[i];
-    
-            if (node1Props[propName] !== node2Props[propName]) {
-                return true;
-            }
-        }
-        return false;
-    }
+
         
         
 
