@@ -191,6 +191,9 @@ const View = (function() {
         // Whether this current evaluation is a synthetic node.
         let isSynthetic = typeof newNode.type === "function";
 
+        if($parent.nodeType == 3) {
+            return;
+        }
         
 
         if(!oldNode) {
@@ -235,25 +238,17 @@ const View = (function() {
 
             for (let i = 0; i < newLength || i < oldLength; i++) {
 
-                if($parent.nodeType == 3) {
-                    break;
-                }
-                let nextParent = $parent.childNodes[index];
 
-                // At this point, any text nodes represent static text on the page.
-                /*if(newParent.nodeType == 3) {
-                    index++;
-                    continue;
-                }*/
-                let nextToUpdate = newNode.children[i];
-                let nextToReplace = oldNode.children[i];
-                let equal = nextToUpdate == nextToReplace;
+                let nextParent = $parent.childNodes[index];
+                let revisedNode = newNode.children[i];
+                let expiredNode = oldNode.children[i];
+                let equal = revisedNode == expiredNode;
                 if(equal) continue;
 
                 updateElement(
                     nextParent,
-                    nextToUpdate,
-                    nextToReplace,
+                    revisedNode,
+                    expiredNode,
                     i
                 );
             }
