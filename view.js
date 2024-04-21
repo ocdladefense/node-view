@@ -219,38 +219,41 @@ const View = (function() {
             let n = createElement(newNode);
 
             if(newNode.type) {
-                $parent.replaceChild(n, $parent.children[index]); 
+                $parent.replaceChild(n, $parent.childNodes[index]); 
             } else {
                 $parent.replaceChild(n, $parent.childNodes[index]);
             }
             
         }
 
-        // Not obvious, but next nodes don't have a type and should
+        // Not obvious, but text nodes don't have a type and should
         // have been handled before this block executes.
-        else if(newNode.type) {
+        else if(newNode.type && newNode.children) {
 
             const newLength = newNode.children.length;
             const oldLength = oldNode.children.length;
 
             for (let i = 0; i < newLength || i < oldLength; i++) {
-                let newParent = $parent.childNodes[index];
+
+                if($parent.nodeType == 3) {
+                    break;
+                }
+                let nextParent = $parent.childNodes[index];
 
                 // At this point, any text nodes represent static text on the page.
-                if(newParent.nodeType == 3) {
+                /*if(newParent.nodeType == 3) {
                     index++;
                     continue;
-                }
-                let nodeNew = newNode.children[i];
-                let nodeOld = oldNode.children[i];
-                
-                let equal = nodeNew == nodeOld;
+                }*/
+                let nextToUpdate = newNode.children[i];
+                let nextToReplace = oldNode.children[i];
+                let equal = nextToUpdate == nextToReplace;
                 if(equal) continue;
 
                 updateElement(
-                    newParent,
-                    nodeNew,
-                    nodeOld,
+                    nextParent,
+                    nextToUpdate,
+                    nextToReplace,
                     i
                 );
             }
@@ -517,7 +520,10 @@ const View = (function() {
  * @returns {View}
  */
 View.createRoot = function(selector) {
-    let root = typeof selector == "string" ? document.querySelector(selector) : selector;
+    let elem = typeof selector == "string" ? document.querySelector(selector) : selector;
+    let root = elem.cloneNode(false);
+    elem.parentElement.replaceChild(root, elem);
+    
     return new View(root);
 };
     
