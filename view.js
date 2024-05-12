@@ -212,8 +212,19 @@ const View = (function() {
 
 
         else if(isSynthetic) {
-            newNode = typeof newNode.type === "function" ? newNode.type(newNode.props) : newNode;
-            oldNode = typeof oldNode.type === "function" ? oldNode.type(oldNode.props) : oldNode;
+            if(newNode.type && newNode.type.prototype && newNode.type.prototype.render) {
+                let obj = new newNode.type(newNode.props);
+                newNode = obj.render();
+            } else {
+                newNode = typeof newNode.type === "function" ? newNode.type(newNode.props) : newNode;
+            }
+
+            if(oldNode.type && oldNode.type.prototype && oldNode.type.prototype.render) {
+                let obj = new oldNode.type(oldNode.props);
+                oldNode = obj.render();
+            }
+            
+            else oldNode = typeof oldNode.type === "function" ? oldNode.type(oldNode.props) : oldNode;
             updateElement($parent, newNode, oldNode, index);
         }
 
