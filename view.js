@@ -189,7 +189,7 @@ const View = (function() {
         let shouldSwapNodes = changed(state);
 
         // Whether this current evaluation is a synthetic node.
-        let isSynthetic = typeof newNode.type === "function";
+        let isSynthetic = newNode && typeof newNode.type === "function";
 
         if($parent.nodeType == 3) {
             return;
