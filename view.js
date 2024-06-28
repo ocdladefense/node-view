@@ -150,8 +150,10 @@ const View = (function() {
         this.currentTree = vNode;
         let $newNode = createElement(vNode);
 
+        this.root.innerHTML = "";
         this.root.appendChild($newNode);
         
+
         // $parent.replaceChild($clone, this.root);
         // postRenderEventHelper(); //@jbernal
 
@@ -346,60 +348,87 @@ const View = (function() {
      * @returns DOMElement
      */
     function createElement(vnode) {
+
+        // Remember this function is ultimately responsible for creating the DOM nodes.
+        // That is the last lines of this function; first we identify text nodes and create those;
+        // then we identify component references and create those;
+        // then we identify function references and create those;
+        // then we create the element nodes.
+        let $el;
+        let theClassNames;
+        let theEventKey;
+
+        // Check for text nodes.
         if(typeof vnode === "string") {
             return document.createTextNode(vnode);
         }
-        if(vnode.type == "text") {
+        
+        if (typeof vnode === "undefined" || null == vnode) {
+            return document.createTextNode("");
+        }
+    
+        if (vnode.type == "text") {
             return document.createTextNode(vnode.children);
         }
-        //first check to see if component references a class name
+
+        // Then check to see if component references a class name.
         if(typeof vnode.type == "function" && vnode.type.prototype && vnode.type.prototype.render) {
             console.log("vNode is a class reference");
             let obj = new vnode.type(vnode.props);
-            let node = createElement(obj.render());
+            let vNode;
+            try {
+                vNode = obj.render();
+            } catch(e) {
+                console.log(e);
+            }
+            return createElement(vNode);
             //BACKTO
             // Let the component know about its own root.
-            obj.setRoot(node);
-            return node;
+            // obj.setRoot(node);
         }
+
+        // Then check to see if the vnode is a function reference.
         if(typeof vnode.type == "function") {
             let fn = vnode.type(vnode.props);
             return createElement(fn);
         }
 
-        var $el = document.createElement(vnode.type);
-        var theClassNames;
-        var theEventKey;
+        // Now we can proceed to create the element nodes.
+        $el = document.createElement(vnode.type);
 
         if (vnode.props) {
-            //var html5 = "className" == prop ? "class" : prop;
+            // var html5 = "className" == prop ? "class" : prop;
             theClassNames = vnode.props["class"];
             if (theClassNames) {
-                theClassNames = theClassNames.split(" "); //hack, get better way of obtaining names, this one only gets the first
+                //hack, get better way of obtaining names, this one only gets the first
+                theClassNames = theClassNames.split(" ");
                 // theEventKey = theClassNames[0]; 
             }
         }
         
-        //BACKTO
-        for(var prop in vnode.props) {
-            var html5 = "className" == prop ? "class" : prop;
-            if (prop.indexOf("on") === 0) {
-                $el.addEventListener(prop.substring(2), vnode.props[prop]);
-                //preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
+        // If the element's virtual node has properties, add them to the element.
+        for(var attr in vnode.props) {
+            var html5 = "className" == attr ? "class" : attr;
+            if (attr.indexOf("on") === 0) {
+                $el.addEventListener(attr.substring(2), vnode.props[attr]);
+                // This line commented out because it is not clear what it does.
+                // preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
                 continue;
             }
-            else if (vnode.props[prop] === null) {
+            else if (vnode.props[attr] == null) {
                 continue;
             }
             else {
-                $el.setAttribute(html5,vnode.props[prop]);
+                $el.setAttribute(html5, vnode.props[attr]);
             }
             
         }
         
+
+        // If we get to this block;
+        // 
         if(null != vnode.children) {
-            vnode.children.map(createElement.bind(this))
-                .forEach($el.appendChild.bind($el));
+            vnode.children.map(createElement.bind(this)).forEach($el.appendChild.bind($el));
         }
         
         return $el;
@@ -553,7 +582,8 @@ function createElement(vnode) {
     if(typeof vnode.type == "function" && vnode.type.prototype && vnode.type.prototype.render) {
         console.log("vNode is a class reference");
         let obj = new vnode.type(vnode.props);
-        let node = createElement(obj.render());
+        let render = obj.render();
+        let node = createElement(render);
         //BACKTO
         // Let the component know about its own root.
         obj.setRoot(node);
@@ -614,9 +644,6 @@ function vNode(name,attributes,...children) {
     } else if(children.length == 1 && typeof children[0] == "string") {
         joined = children;
     } else {
-        //children = Array.isArray(children) ? children : [children];
-        //console.log(children);
-        //flatten method?
         for(var i = 0; i<children.length; i++) {
             if(Array.isArray(children[i])) {
                 joined = joined.concat(children[i]);
