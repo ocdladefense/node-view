@@ -6,7 +6,7 @@
  *
  *
  */
-
+console.log("FOOBY");
  export { vNode, View };
 
  import { CACHE, HISTORY } from './cache.js';
@@ -409,7 +409,9 @@ const View = (function() {
         // If the element's virtual node has properties, add them to the element.
         for(var attr in vnode.props) {
             var html5 = "className" == attr ? "class" : attr;
+            attr = attr.toLowerCase();
             if (attr.indexOf("on") === 0) {
+                console.log("Adding event listener: ", attr.substring(2));
                 $el.addEventListener(attr.substring(2), vnode.props[attr]);
                 // This line commented out because it is not clear what it does.
                 // preRenderEventHelper(theEventKey, prop, vnode.props[prop]);
@@ -572,8 +574,8 @@ View.createRoot = function(selector) {
  * @returns DOMElement
  */
 function createElement(vnode) {
-    if(typeof vnode === "string") {
-        return document.createTextNode(vnode);
+    if(typeof vnode === "string" || typeof vnode === "number") {
+        return document.createTextNode(vnode.toString());
     }
     if(vnode.type == "text") {
         return document.createTextNode(vnode.children);
