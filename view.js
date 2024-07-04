@@ -6,10 +6,16 @@
  *
  *
  */
-console.log("FOOBY");
- export { vNode, View };
 
- import { CACHE, HISTORY } from './cache.js';
+export { vNode, View, VirtualDom };
+import { CACHE, HISTORY } from './cache.js';
+
+
+const VirtualDom = (function() {
+    return {
+        Fragment: "Fragment"
+    };
+})();
 
 
 /** 
@@ -574,6 +580,7 @@ View.createRoot = function(selector) {
  * @returns DOMElement
  */
 function createElement(vnode) {
+    
     if(typeof vnode === "string" || typeof vnode === "number") {
         return document.createTextNode(vnode.toString());
     }
@@ -596,7 +603,7 @@ function createElement(vnode) {
         return createElement(fn);
     }
 
-    var $el = document.createElement(vnode.type);
+    var $el = vnode.type == "Fragment" ? document.createDocumentFragment() : document.createElement(vnode.type);
     var theClassNames;
     var theEventKey;
 
@@ -663,3 +670,6 @@ function vNode(name,attributes,...children) {
     
     return vnode;
 }
+
+
+
