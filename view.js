@@ -205,7 +205,7 @@ const View = (function() {
         
 
         if(!oldNode) {
-            let n = createElement(newNode);
+            let n = View.createElement(newNode);
             $parent.appendChild(n);
         }
 
