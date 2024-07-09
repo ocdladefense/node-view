@@ -487,7 +487,7 @@ function createElement(vnode) {
         let node = createElement(render);
         //BACKTO
         // Let the component know about its own root.
-        obj.setRoot(node);
+        // obj.setRoot(node);
         return node;
     }
     if(typeof vnode.type == "function") {
