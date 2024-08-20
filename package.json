@@ -1,17 +1,17 @@
 {
-  "name": "@ocdla/view",
-  "version": "2.3.14",
-  "description": "Light-weight, virtual node library.",
-  "main": "view.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "José Bernal, Isaac Walters",
-  "license": "ISC",
-  "type": "module",
-  "dependencies": {},
-  "devDependencies": {
-    "jsdoc": "^3.6.10"
-  }
+    "name": "@ocdla/view",
+    "version": "2.4.0",
+    "description": "Light-weight, virtual node library.",
+    "main": "view.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "José Bernal, Isaac Walters",
+    "license": "ISC",
+    "type": "module",
+    "dependencies": {},
+    "devDependencies": {
+        "jsdoc": "^3.6.10"
+    }
 }
