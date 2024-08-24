@@ -1,3 +1,7 @@
+// window.addEventListener('popstate', () => {
+//     console.log('a');
+// });
+
 export default class History {
     static CACHE = {};
 
@@ -58,7 +62,7 @@ function preRenderEventHelper(
     selector,
     eventType,
     callback,
-    selectorType = "class"
+    selectorType = 'class'
 ) {
     if (domEvents[selector] == null) {
         domEvents[selector] = {};
@@ -86,7 +90,7 @@ function postRenderEventHelper() {
             let callback = event.callback;
             let selectorType = event.selectorType;
             let domSelector =
-                selectorType == "class" ? "." + selector : "#" + selector;
+                selectorType == 'class' ? '.' + selector : '#' + selector;
             let containers = document.querySelectorAll(domSelector);
             for (let i = 0; i < containers.length; i++) {
                 containers[i].addEventListener(eventType, callback);
