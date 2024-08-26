@@ -7,17 +7,30 @@
  *
  */
 
-const effects = [];
+// Array of functions that will be executed before each view is rendered.
+const effectsFns = {};
 
-export { vNode, View, useEffect, getEffects };
+// Object containing the results of each effect function.
+const results = {};
+
+export { vNode, View, useEffect, getResult };
 // import { CACHE, HISTORY } from "./cache.js";
 
-function useEffect(fn, deps) {
-    effects.push({ fn, deps });
+function useEffect(key, fn) {
+    effectsFns[key] = fn;
 }
 
-function getEffects() {
-    return effects;
+function getResult(key) {
+    return results[key];
+}
+
+async function resolveEffects() {
+    let foobar = Object.values(effectsFns);
+    let _results = await Promise.all(foobar.map(fn => fn()));
+    let i = 0;
+    for (const key of Object.keys(effectsFns)) {
+        results[key] = _results[i++];
+    }
 }
 
 /**
@@ -26,50 +39,13 @@ function getEffects() {
  * This is a description of the View class.
  */
 const View = (function () {
-    async function refresh() {
-        let hash;
-        let params;
-        [hash, params] = parseHash(window.location.hash);
-        let tree;
-        let c;
-
-        let elem = document.querySelector("#job-container");
-        if (elem) {
-            elem.removeEventListener("click", this.currentComponent);
-        }
-
-        if (hash == "" || hash == "#") {
-            c = new JobList();
-        } else if (hash == "#new") {
-            c = new JobForm();
-        } else if (hash.startsWith("#edit")) {
-            c = new JobForm(params.id);
-        } else if (hash.startsWith("#details")) {
-            c = new JobSearch(params.id);
-        }
-
-        c.listenTo("click", "#job-container");
-        /*
-        Listen for submit events
-        c.listenTo("submit", "#record-form");
-        */
-
-        if (c.loadData) {
-            await c.loadData();
-        }
-        tree = c.render();
-
-        this.view.render(tree);
-        this.currentComponent = c;
-    }
-
     const NODE_CHANGED_STATES = [
-        "NODE_NO_COMPARISON",
-        "NODE_DIFFERENT_TYPE",
-        "NODE_NOT_EQUAL",
-        "NODE_DIFFERENT_ELEMENT",
-        "NODE_PROPS_CHANGED",
-        "TEXT_NODES_NOT_EQUAL"
+        'NODE_NO_COMPARISON',
+        'NODE_DIFFERENT_TYPE',
+        'NODE_NOT_EQUAL',
+        'NODE_DIFFERENT_ELEMENT',
+        'NODE_PROPS_CHANGED',
+        'TEXT_NODES_NOT_EQUAL'
     ];
 
     /**
@@ -89,11 +65,23 @@ const View = (function () {
      * @description Perform an initial paint of a virtual node structure.
      * @param {Object} vNode A virtual node structure.
      */
-    function render(vNode) {
+    async function render(vNode) {
+        // Components can register effects to be run before rendering.
+        // These should be understood as "this component needs the effect (or result) of exeecuting some function before it can render".
+        // Components can then use the result of these functions through the getResult(key) function.
+        // This also implies that components are at least evaluated twice at startup: once to register the effect and once to start the initial render.
+
+        // Run through the component functions once to gather all the effects.
+        evaluateEffects(vNode);
+        await resolveEffects();
+        console.log('Effects resolved.');
+        console.log(results);
+
+        // Note render the tree.
         this.currentTree = vNode;
         let $newNode = createElement(vNode);
 
-        this.root.innerHTML = "";
+        this.root.innerHTML = '';
         this.root.appendChild($newNode);
     }
 
@@ -120,7 +108,7 @@ const View = (function () {
         let shouldSwapNodes = changed(state);
 
         // Whether this current evaluation is a synthetic node.
-        let isSynthetic = newNode && typeof newNode.type === "function";
+        let isSynthetic = newNode && typeof newNode.type === 'function';
 
         if ($parent.nodeType == 3) {
             return;
@@ -147,7 +135,7 @@ const View = (function () {
                 newNode = obj.render();
             } else {
                 newNode =
-                    typeof newNode.type === "function"
+                    typeof newNode.type === 'function'
                         ? newNode.type(newNode.props)
                         : newNode;
             }
@@ -161,7 +149,7 @@ const View = (function () {
                 oldNode = obj.render();
             } else
                 oldNode =
-                    typeof oldNode.type === "function"
+                    typeof oldNode.type === 'function'
                         ? oldNode.type(oldNode.props)
                         : oldNode;
             updateElement($parent, newNode, oldNode, index);
@@ -194,32 +182,32 @@ const View = (function () {
     }
 
     function getChangeState(n1, n2) {
-        if (n1 && !n2) return "NODE_NO_COMPARISON";
+        if (n1 && !n2) return 'NODE_NO_COMPARISON';
 
-        if (n1 == n2) return "NODE_NO_CHANGE";
+        if (n1 == n2) return 'NODE_NO_CHANGE';
 
         // Comparing two text nodes that are obviously different.
-        if (typeof n1 === "string" && typeof n2 === "string" && n1 !== n2) {
-            return "TEXT_NODES_NOT_EQUAL";
+        if (typeof n1 === 'string' && typeof n2 === 'string' && n1 !== n2) {
+            return 'TEXT_NODES_NOT_EQUAL';
         }
 
         if (typeof n1 !== typeof n2) {
-            return "NODE_DIFFERENT_TYPE";
+            return 'NODE_DIFFERENT_TYPE';
         }
 
         if (n1.type !== n2.type) {
-            return "NODE_DIFFERENT_ELEMENT";
+            return 'NODE_DIFFERENT_ELEMENT';
         }
 
         if (propsChanged(n1, n2)) {
-            return "NODE_PROPS_CHANGED";
+            return 'NODE_PROPS_CHANGED';
         }
 
         if (n1 != n2) {
-            return "NODE_RECURSIVE_EVALUATE";
+            return 'NODE_RECURSIVE_EVALUATE';
         }
 
-        return "NODE_NO_CHANGE";
+        return 'NODE_NO_CHANGE';
     }
 
     function changed(state) {
@@ -273,7 +261,7 @@ const View = (function () {
  */
 View.createRoot = function (selector) {
     let elem =
-        typeof selector == "string"
+        typeof selector == 'string'
             ? document.querySelector(selector)
             : selector;
     let root = elem.cloneNode(false);
@@ -281,6 +269,10 @@ View.createRoot = function (selector) {
 
     return new View(root);
 };
+
+function evaluateEffects(vnode) {
+    return createElement(vnode);
+}
 
 /**
  * @memberof View
@@ -290,19 +282,19 @@ View.createRoot = function (selector) {
  * @returns DOMElement
  */
 function createElement(vnode) {
-    if (typeof vnode === "string" || typeof vnode === "number") {
+    if (typeof vnode === 'string' || typeof vnode === 'number') {
         return document.createTextNode(vnode.toString());
     }
-    if (vnode.type == "text") {
+    if (vnode.type == 'text') {
         return document.createTextNode(vnode.children);
     }
     //first check to see if component references a class name
     if (
-        typeof vnode.type == "function" &&
+        typeof vnode.type == 'function' &&
         vnode.type.prototype &&
         vnode.type.prototype.render
     ) {
-        console.log("vNode is a class reference");
+        console.log('vNode is a class reference');
         let obj = new vnode.type(vnode.props);
         let render = obj.render();
         let node = createElement(render);
@@ -311,13 +303,13 @@ function createElement(vnode) {
         // obj.setRoot(node);
         return node;
     }
-    if (typeof vnode.type == "function") {
+    if (typeof vnode.type == 'function') {
         let fn = vnode.type(vnode.props);
         return createElement(fn);
     }
 
     var $el =
-        vnode.type == "Fragment"
+        vnode.type == 'Fragment'
             ? document.createDocumentFragment()
             : document.createElement(vnode.type);
     var theClassNames;
@@ -325,18 +317,22 @@ function createElement(vnode) {
 
     if (vnode.props) {
         //var html5 = "className" == prop ? "class" : prop;
-        theClassNames = vnode.props["class"];
+        theClassNames = vnode.props['class'];
         if (theClassNames) {
-            theClassNames = theClassNames.split(" "); //hack, get better way of obtaining names, this one only gets the first
+            theClassNames = theClassNames.split(' '); //hack, get better way of obtaining names, this one only gets the first
             // theEventKey = theClassNames[0];
         }
     }
 
     //BACKTO
     for (var prop in vnode.props) {
-        var html5 = "className" == prop ? "class" : prop;
-        if ("children" == prop) continue;
-        if (prop.indexOf("on") === 0) {
+        var html5 = 'className' == prop ? 'class' : prop;
+        if ('children' == prop) continue;
+        if ('dangerouslySetInnerHTML' == prop) {
+            $el.innerHTML = vnode.props[prop];
+            continue;
+        }
+        if (prop.indexOf('on') === 0) {
             $el.addEventListener(prop.substring(2), vnode.props[prop]);
             continue;
         } else if (vnode.props[prop] === null) {
@@ -364,10 +360,10 @@ function vNode(name, attributes, ...children) {
     if (
         children.length == 0 ||
         null == children[0] ||
-        typeof children[0] == "undefined"
+        typeof children[0] == 'undefined'
     ) {
         joined = [];
-    } else if (children.length == 1 && typeof children[0] == "string") {
+    } else if (children.length == 1 && typeof children[0] == 'string') {
         joined = children;
     } else {
         for (var i = 0; i < children.length; i++) {
@@ -388,4 +384,41 @@ function vNode(name, attributes, ...children) {
     };
 
     return vnode;
+}
+
+async function refresh() {
+    let hash;
+    let params;
+    [hash, params] = parseHash(window.location.hash);
+    let tree;
+    let c;
+
+    let elem = document.querySelector('#job-container');
+    if (elem) {
+        elem.removeEventListener('click', this.currentComponent);
+    }
+
+    if (hash == '' || hash == '#') {
+        c = new JobList();
+    } else if (hash == '#new') {
+        c = new JobForm();
+    } else if (hash.startsWith('#edit')) {
+        c = new JobForm(params.id);
+    } else if (hash.startsWith('#details')) {
+        c = new JobSearch(params.id);
+    }
+
+    c.listenTo('click', '#job-container');
+    /*
+        Listen for submit events
+        c.listenTo("submit", "#record-form");
+        */
+
+    if (c.loadData) {
+        await c.loadData();
+    }
+    tree = c.render();
+
+    this.view.render(tree);
+    this.currentComponent = c;
 }
