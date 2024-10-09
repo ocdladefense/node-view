@@ -82,10 +82,6 @@ const View = (function () {
         this.currentTree = vNode;
         let $newNode = createElement(vNode);
 
-<<<<<<< HEAD
-        this.root.innerHTML = '';
-        this.root.appendChild($newNode);
-=======
         this.root.innerHTML = "";
 
         if(this.shouldReplaceRoot) {
@@ -94,7 +90,6 @@ const View = (function () {
         } else {
             this.root.appendChild($newNode);
         }
->>>>>>> b0ac176 (Let apps replace the body tag.)
     }
 
     function update(newNode) {
