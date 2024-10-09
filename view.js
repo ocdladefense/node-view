@@ -52,8 +52,9 @@ const View = (function () {
      * @constructs View
      * @param root
      */
-    function View(root) {
+    function View(root, replace = false) {
         this.root = root;
+        this.shouldReplaceRoot = replace;
         //document.getElementById("order-history-main").addEventListener("click", myAppEventHandler);
         //root.addEventListener("click", myAppEventHandler);
     }
@@ -81,8 +82,19 @@ const View = (function () {
         this.currentTree = vNode;
         let $newNode = createElement(vNode);
 
+<<<<<<< HEAD
         this.root.innerHTML = '';
         this.root.appendChild($newNode);
+=======
+        this.root.innerHTML = "";
+
+        if(this.shouldReplaceRoot) {
+            this.root.replaceWith($newNode);
+            this.root = $newNode;
+        } else {
+            this.root.appendChild($newNode);
+        }
+>>>>>>> b0ac176 (Let apps replace the body tag.)
     }
 
     function update(newNode) {
@@ -259,7 +271,7 @@ const View = (function () {
  * @param {string} selector
  * @returns {View}
  */
-View.createRoot = function (selector) {
+View.createRoot = function (selector, shouldReplaceRoot = false) {
     let elem =
         typeof selector == 'string'
             ? document.querySelector(selector)
@@ -267,7 +279,7 @@ View.createRoot = function (selector) {
     let root = elem.cloneNode(false);
     elem.parentElement.replaceChild(root, elem);
 
-    return new View(root);
+    return new View(root, shouldReplaceRoot);
 };
 
 function evaluateEffects(vnode) {
