@@ -7,31 +7,42 @@
  *
  */
 
-// Array of functions that will be executed before each view is rendered.
-const effectsFns = {};
 
-// Object containing the results of each effect function.
-const results = {};
 
-export { vNode, View, useEffect, getResult };
+export { vNode, View, useEffect, useState };
 // import { CACHE, HISTORY } from "./cache.js";
 
-function useEffect(key, fn) {
-    effectsFns[key] = fn;
-}
+const states = [];
 
-function getResult(key) {
-    return results[key];
-}
+let stateIndex = 0;
 
-async function resolveEffects() {
-    let foobar = Object.values(effectsFns);
-    let _results = await Promise.all(foobar.map(fn => fn()));
-    let i = 0;
-    for (const key of Object.keys(effectsFns)) {
-        results[key] = _results[i++];
+
+function useState(initialState) {
+    let value, setState;
+    setState = function(newValue) {
+        states[stateIndex] = newValue;
+    };
+    
+    if(states[stateIndex]) {
+        value = states[stateIndex];
+    } else {
+        value = states[stateIndex++] = initialState;
     }
+
+    return [value,setState];
 }
+
+
+// See https://react.dev/reference/react/useEffect
+async function useEffect(fn, deps) {
+    // let ret = effectsFns[key] = fn;
+    let ret;
+    if(null == deps || deps.length == 0) {
+        ret = await Promise.resolve(fn());
+    }
+    // If ret has a value then it is a "cleanup" function, intended to be executed after render.
+}
+
 
 /**
  * @class View
@@ -73,10 +84,10 @@ const View = (function () {
         // This also implies that components are at least evaluated twice at startup: once to register the effect and once to start the initial render.
 
         // Run through the component functions once to gather all the effects.
-        evaluateEffects(vNode);
-        await resolveEffects();
-        console.log('Effects resolved.');
-        console.log(results);
+        // evaluateEffects(vNode);
+        // await resolveEffects();
+        // console.log('Effects resolved.');
+        // console.log(results);
 
         // Note render the tree.
         this.currentTree = vNode;
@@ -97,6 +108,8 @@ const View = (function () {
 
         this.currentTree = newNode;
     }
+
+
 
     /**
      * @memberof View
@@ -277,9 +290,7 @@ View.createRoot = function (selector, shouldReplaceRoot = false) {
     return new View(root, shouldReplaceRoot);
 };
 
-function evaluateEffects(vnode) {
-    return createElement(vnode);
-}
+
 
 /**
  * @memberof View
@@ -392,6 +403,13 @@ function vNode(name, attributes, ...children) {
 
     return vnode;
 }
+
+
+
+
+
+
+
 
 async function refresh() {
     let hash;
