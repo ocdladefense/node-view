@@ -10,38 +10,53 @@
 
 
 export { vNode, View, useEffect, useState };
-// import { CACHE, HISTORY } from "./cache.js";
 
-const states = [];
+// Store values related to all hooks in the order they are executed.
+let hooks = [];
 
-let stateIndex = 0;
+// Index of the current hook being executed.
+let idx = 0;
 
 
-function useState(initialState) {
-    let value, setState;
-    setState = function(newValue) {
-        states[stateIndex] = newValue;
+
+function useState(initialValue) {
+    // console.log("useState called.",idx);
+    const state = hooks[idx] || initialValue;
+
+    const _idx = idx;
+    const setState = (newVal) => {
+        hooks[_idx] = newVal;
     };
-    
-    if(states[stateIndex]) {
-        value = states[stateIndex];
-    } else {
-        value = states[stateIndex++] = initialState;
-    }
 
-    return [value,setState];
+    idx++;
+    return [state, setState];
 }
 
 
-// See https://react.dev/reference/react/useEffect
-async function useEffect(fn, deps) {
-    // let ret = effectsFns[key] = fn;
-    let ret;
-    if(null == deps || deps.length == 0) {
-        ret = await Promise.resolve(fn());
+
+function useEffect(cb, deps) {
+    // console.log("useEffect called.",idx);
+    let result = null;
+    let oldDeps = hooks[idx];
+    let hasChanged = true;
+
+    if (oldDeps) {
+        hasChanged = deps.some((dep, i) => !Object.is(dep, oldDeps[i]));
+        console.log("Use effect will be fired!");
     }
-    // If ret has a value then it is a "cleanup" function, intended to be executed after render.
+
+    // TODO: if result is a function, React interprets this as being a "cleanup" function.
+    // For example, if useEffect connects to a database, result could be a function that disconnects from the database.
+    if (hasChanged) {
+        result = Promise.resolve(cb());
+    }
+
+    hooks[idx] = deps;
+    idx++;
 }
+
+
+
 
 
 /**
@@ -50,6 +65,8 @@ async function useEffect(fn, deps) {
  * This is a description of the View class.
  */
 const View = (function () {
+
+
     const NODE_CHANGED_STATES = [
         'NODE_NO_COMPARISON',
         'NODE_DIFFERENT_TYPE',
@@ -66,8 +83,7 @@ const View = (function () {
     function View(root, replace = false) {
         this.root = root;
         this.shouldReplaceRoot = replace;
-        //document.getElementById("order-history-main").addEventListener("click", myAppEventHandler);
-        //root.addEventListener("click", myAppEventHandler);
+        this.renderIndex = 0;
     }
 
     /**
@@ -77,31 +93,49 @@ const View = (function () {
      * @description Perform an initial paint of a virtual node structure.
      * @param {Object} vNode A virtual node structure.
      */
-    async function render(vNode) {
-        // Components can register effects to be run before rendering.
-        // These should be understood as "this component needs the effect (or result) of exeecuting some function before it can render".
-        // Components can then use the result of these functions through the getResult(key) function.
-        // This also implies that components are at least evaluated twice at startup: once to register the effect and once to start the initial render.
+    function render(vNode, oldHooks) {
+        
+        oldHooks = oldHooks || [];
+        let componentDidChange = false;
 
-        // Run through the component functions once to gather all the effects.
-        // evaluateEffects(vNode);
-        // await resolveEffects();
-        // console.log('Effects resolved.');
-        // console.log(results);
 
-        // Note render the tree.
-        this.currentTree = vNode;
-        let $newNode = createElement(vNode);
+        componentDidChange = hooks.some((dep, i) => !Object.is(dep, oldHooks[i]));
 
-        this.root.innerHTML = "";
 
-        if(this.shouldReplaceRoot) {
-            this.root.replaceWith($newNode);
-            this.root = $newNode;
-        } else {
+
+        idx = 0;
+
+
+        // On first pass we must create the element.
+        if (this.renderIndex === 0) {
+            console.log("Component first render.");
+            this.currentTree = vNode;
+            let $newNode = createElement(vNode);
+
+
             this.root.appendChild($newNode);
         }
+
+
+
+        // Subsequent passes will update the element (if required).
+        if (componentDidChange) {
+            console.log("Component did change: " + componentDidChange);
+            console.log("Changed values:");
+            console.log(oldHooks, hooks);
+            // idx = 0;
+            this.update(vNode);
+        }
+
+        
+        oldHooks = hooks.slice();
+        // console.log("Render complete.");
+
+        if(this.renderIndex++ > 25) return;
+        setTimeout(() => this.render(vNode, oldHooks), 1000);
     }
+
+
 
     function update(newNode) {
         updateElement(this.root, newNode, this.currentTree);
@@ -167,11 +201,13 @@ const View = (function () {
             ) {
                 let obj = new oldNode.type(oldNode.props);
                 oldNode = obj.render();
-            } else
+            } else {
                 oldNode =
                     typeof oldNode.type === 'function'
-                        ? oldNode.type(oldNode.props)
+                        ? {} //oldNode.type(oldNode.props)
                         : oldNode;
+            }
+
             updateElement($parent, newNode, oldNode, index);
         } else if (!isSynthetic && shouldSwapNodes) {
             let n = createElement(newNode);
@@ -183,7 +219,7 @@ const View = (function () {
             }
         }
 
-        // Not obvious, but text nodes don"t have a type and should
+        // Not obvious, but text nodes don't have a type and should
         // have been handled before this block executes.
         else if (newNode.type && newNode.children) {
             const newLength = newNode.children.length;
@@ -222,6 +258,8 @@ const View = (function () {
         if (propsChanged(n1, n2)) {
             return 'NODE_PROPS_CHANGED';
         }
+
+
 
         if (n1 != n2) {
             return 'NODE_RECURSIVE_EVALUATE';
@@ -284,10 +322,10 @@ View.createRoot = function (selector, shouldReplaceRoot = false) {
         typeof selector == 'string'
             ? document.querySelector(selector)
             : selector;
-    let root = elem.cloneNode(false);
-    elem.parentElement.replaceChild(root, elem);
+    // let root = elem.cloneNode(false);
+    // elem.parentElement.replaceChild(root, elem);
 
-    return new View(root, shouldReplaceRoot);
+    return new View(elem, shouldReplaceRoot);
 };
 
 
