@@ -131,8 +131,8 @@ const View = (function () {
         oldHooks = hooks.slice();
         // console.log("Render complete.");
 
-        if(this.renderIndex++ > 25) return;
-        setTimeout(() => this.render(vNode, oldHooks), 1000);
+        this.renderIndex++;
+        setTimeout(() => this.render(vNode, oldHooks), 500);
     }
 
 
