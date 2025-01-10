@@ -35,19 +35,30 @@ function useState(initialValue) {
 
 
 function useEffect(cb, deps) {
-    // console.log("useEffect called.",idx);
+    console.log("UseEffect called.",idx);
     let result = null;
-    let oldDeps = hooks[idx];
-    let hasChanged = true;
+    let oldDeps = hooks[idx]; // This will always be null on the first pass.
+    let execute = true;
 
-    if (oldDeps) {
-        hasChanged = deps.some((dep, i) => !Object.is(dep, oldDeps[i]));
-        console.log("Use effect will be fired!");
+    console.log(deps,oldDeps,idx);
+    if(!oldDeps) { // Everything gets executed at least once.
+        execute = true;
     }
+    else if(deps == []) { // Per docs, empty deps gets executed once.
+        execute = false;
+    }
+    else if(null == deps) { // Per docs, null deps gets executed with each render.
+        execute = true;
+    }
+    else if(Array.isArray(deps)) {
+        execute = deps.some((dep, i) => !Object.is(dep, oldDeps[i]));
+    }
+
 
     // TODO: if result is a function, React interprets this as being a "cleanup" function.
     // For example, if useEffect connects to a database, result could be a function that disconnects from the database.
-    if (hasChanged) {
+    if(execute) {
+        console.log("UseEffect callback will be executed.", idx);
         result = Promise.resolve(cb());
     }
 
