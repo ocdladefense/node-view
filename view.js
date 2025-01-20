@@ -12,61 +12,86 @@
 export { vNode, View, useEffect, useState };
 
 // Store values related to all hooks in the order they are executed.
-let hooks = [];
+const hooks = [];
 
 // Index of the current hook being executed.
-let idx = 0;
+let hookIndex = 0;
+
+// Store effects in with the same indices as their dependencies
+// registered in hooks.
+const effects = [];
+
+
+let currentRoot = null;
 
 
 
 function useState(initialValue) {
     // console.log("useState called.",idx);
-    const state = hooks[idx] || initialValue;
+    const state = hooks[hookIndex] || initialValue;
 
-    const _idx = idx;
+    const _idx = hookIndex;
     const setState = (newVal) => {
         hooks[_idx] = newVal;
     };
 
-    idx++;
+    hookIndex++;
     return [state, setState];
 }
 
 
 
 function useEffect(cb, deps) {
-    console.log("UseEffect called.",idx);
-    let result = null;
-    let oldDeps = hooks[idx]; // This will always be null on the first pass.
-    let execute = true;
+    console.log("UseEffect called.", hookIndex);
+    effects[hookIndex] = cb;
+    hooks[hookIndex] = deps;
 
-    console.log(deps,oldDeps,idx);
-    if(!oldDeps) { // Everything gets executed at least once.
-        execute = true;
-    }
-    else if(deps == []) { // Per docs, empty deps gets executed once.
-        execute = false;
-    }
-    else if(null == deps) { // Per docs, null deps gets executed with each render.
-        execute = true;
-    }
-    else if(Array.isArray(deps)) {
-        execute = deps.some((dep, i) => !Object.is(dep, oldDeps[i]));
-    }
-
-
-    // TODO: if result is a function, React interprets this as being a "cleanup" function.
-    // For example, if useEffect connects to a database, result could be a function that disconnects from the database.
-    if(execute) {
-        console.log("UseEffect callback will be executed.", idx);
-        result = Promise.resolve(cb());
-    }
-
-    hooks[idx] = deps;
-    idx++;
+    hookIndex++;
 }
 
 
+
+function getEvaluator(oldHooks) {
+
+    return function evaluateEffect(fn, index) {
+
+        
+        let result = null;
+        let oldDeps = oldHooks[index]; // This will always be null on the first pass.
+        let deps = hooks[index];
+        let execute = false;
+
+        console.log("Evaluating effect at index", index);
+        console.log(index,oldDeps,deps);
+
+        // No previous dependency was recorded.
+        // This should mean we have only completed the first render.
+        // I.e., renderIndex === 0;
+        if(!oldDeps) { // Everything gets executed at least once.
+            execute = true;
+        }
+        else if(deps == []) { // Per docs, empty deps gets executed once.
+            execute = false;
+        }
+        else if(null == deps) { // Per docs, null deps gets executed with each render.
+            execute = true;
+        }
+        else if(Array.isArray(deps)) {
+            execute = deps.some((dep, i) => !Object.is(dep, oldDeps[i]));
+        }
+
+
+        // TODO: if result is a function, React interprets this as being a "cleanup" function.
+        // For example, if useEffect connects to a database, result could be a function that disconnects from the database.
+        if(execute) {
+            result = Promise.resolve(fn());
+            console.log("UseEffect callback was executed.", index);
+            if(typeof result == 'function') {
+                // result(deps);
+            }
+        }
+    };
+}
 
 
 
@@ -94,7 +119,7 @@ const View = (function () {
     function View(root, replace = false) {
         this.root = root;
         this.shouldReplaceRoot = replace;
-        this.renderIndex = 0;
+        this.renderCount = 0;
     }
 
     /**
@@ -104,46 +129,77 @@ const View = (function () {
      * @description Perform an initial paint of a virtual node structure.
      * @param {Object} vNode A virtual node structure.
      */
-    function render(vNode, oldHooks) {
+    function render(virtualNode, oldHooks = []) {
         
-        oldHooks = oldHooks || [];
-        let componentDidChange = false;
+
+        console.log("View: Begin render algorithm.");
+        
+
+        let hookValuesDidChange = false;
+        let componentDidRender = false;
+
+        hookValuesDidChange = hooks.some((dep, i) => !Object.is(dep, oldHooks[i]));
 
 
-        componentDidChange = hooks.some((dep, i) => !Object.is(dep, oldHooks[i]));
 
 
-
-        idx = 0;
-
-
-        // On first pass we must create the element.
-        if (this.renderIndex === 0) {
-            console.log("Component first render.");
-            this.currentTree = vNode;
-            let $newNode = createElement(vNode);
+        hookIndex = 0;
 
 
-            this.root.appendChild($newNode);
+        // On first pass we create the entire node tree as HTML elements,
+        // and append it to the DOM.
+        if (this.renderCount === 0) {
+            console.log("View: Component first render.");
+            this.currentTree = virtualNode;
+            let htmlNodes = createElement(virtualNode);
+            console.log(virtualNode);
+            this.root.appendChild(htmlNodes);
+            componentDidRender = true;
+            this.renderCount++;
+            console.log("View: Initial render complete.");
         }
 
 
 
+        console.log("View: HookValuesDidChange is false.");
         // Subsequent passes will update the element (if required).
-        if (componentDidChange) {
-            console.log("Component did change: " + componentDidChange);
+        if (this.renderCount > 1 && hookValuesDidChange) {
+            console.log("OLD HOOKS ARE: ", oldHooks);
+            console.log("View: Begin component re-render.");
+            console.log("HookValuesDidChange is: " + hookValuesDidChange);
             console.log("Changed values:");
             console.log(oldHooks, hooks);
             // idx = 0;
-            this.update(vNode);
-        }
+            virtualNode = vNode(virtualNode.meta.type, virtualNode.meta.props, []);
+            this.update(virtualNode);
+            componentDidRender = true;
+            this.renderCount++;
+            console.log("View: Component re-render complete.");
+        } 
 
         
-        oldHooks = hooks.slice();
-        // console.log("Render complete.");
 
-        this.renderIndex++;
-        setTimeout(() => this.render(vNode, oldHooks), 500);
+
+
+        // All hooks get evaluated after the initial render.
+        // Subsequent renders will only evaluate hooks if dependencies have changed.
+        if(componentDidRender) {
+            console.log("View: Begin effect evaluation.");
+            let evaluatorFunction = getEvaluator(oldHooks);
+            effects.forEach(evaluatorFunction);
+            console.log("View: End effect evaluation.");
+        }
+
+        // Save a reference to the current values so we can compare them on the next invocation
+        // of this function.
+        // @todo - we need a deep copy here.
+        // If there is a difference then we will re-render the component.
+        oldHooks = hooks.slice(0);
+
+        
+        console.log("View: End render algorithm (" + this.renderCount + ").");
+        this.renderCount++;
+        setTimeout(() => this.render(virtualNode, oldHooks), 1200);
     }
 
 
@@ -172,17 +228,19 @@ const View = (function () {
         // Whether to use replaceChild to swap nodes.
         let shouldSwapNodes = changed(state);
 
-        // Whether this current evaluation is a synthetic node.
-        let isSynthetic = newNode && typeof newNode.type === 'function';
-
         if ($parent.nodeType == 3) {
             return;
         }
 
-        if (!oldNode) {
-            let n = View.createElement(newNode);
+        if (!oldNode)
+        {
+            let n = createElement(newNode);
             $parent.appendChild(n);
-        } else if (!newNode) {
+        }
+
+
+        else if (!newNode)
+        {
             if (!$parent.children[index]) {
                 $parent.removeChild(
                     $parent.children[$parent.children.length - 1]
@@ -190,49 +248,21 @@ const View = (function () {
             } else {
                 $parent.removeChild($parent.children[index]);
             }
-        } else if (isSynthetic) {
-            if (
-                newNode.type &&
-                newNode.type.prototype &&
-                newNode.type.prototype.render
-            ) {
-                let obj = new newNode.type(newNode.props);
-                newNode = obj.render();
-            } else {
-                newNode =
-                    typeof newNode.type === 'function'
-                        ? newNode.type(newNode.props)
-                        : newNode;
-            }
+        }
 
-            if (
-                oldNode.type &&
-                oldNode.type.prototype &&
-                oldNode.type.prototype.render
-            ) {
-                let obj = new oldNode.type(oldNode.props);
-                oldNode = obj.render();
-            } else {
-                oldNode =
-                    typeof oldNode.type === 'function'
-                        ? {} //oldNode.type(oldNode.props)
-                        : oldNode;
-            }
 
-            updateElement($parent, newNode, oldNode, index);
-        } else if (!isSynthetic && shouldSwapNodes) {
+        else if (shouldSwapNodes)
+        {
+            console.log("Swapping nodes: "+state);
             let n = createElement(newNode);
-
-            if (newNode.type) {
-                $parent.replaceChild(n, $parent.childNodes[index]);
-            } else {
-                $parent.replaceChild(n, $parent.childNodes[index]);
-            }
+            console.log("oldNode:",oldNode, "newNode:",newNode);
+            $parent.replaceChild(n, $parent.childNodes[index]);
         }
 
         // Not obvious, but text nodes don't have a type and should
         // have been handled before this block executes.
-        else if (newNode.type && newNode.children) {
+        else if (newNode.type && newNode.children)
+        {
             const newLength = newNode.children.length;
             const oldLength = oldNode.children.length;
 
@@ -248,6 +278,10 @@ const View = (function () {
         }
     }
 
+
+    /**
+     * @function getChangedState
+     */
     function getChangeState(n1, n2) {
         if (n1 && !n2) return 'NODE_NO_COMPARISON';
 
@@ -270,8 +304,6 @@ const View = (function () {
             return 'NODE_PROPS_CHANGED';
         }
 
-
-
         if (n1 != n2) {
             return 'NODE_RECURSIVE_EVALUATE';
         }
@@ -279,9 +311,18 @@ const View = (function () {
         return 'NODE_NO_CHANGE';
     }
 
+
+
+    /**
+     * 
+     * @param {*} state 
+     * @returns Boolean
+     */
     function changed(state) {
         return NODE_CHANGED_STATES.includes(state);
     }
+
+
 
     function propsChanged(node1, node2) {
         let node1Props = node1.props;
@@ -304,6 +345,7 @@ const View = (function () {
 
         for (let i = 0; i < aProps.length; i++) {
             let propName = aProps[i];
+            if(propName == "children") continue;
 
             if (node1Props[propName] !== node2Props[propName]) {
                 return true;
@@ -312,6 +354,11 @@ const View = (function () {
 
         return false;
     }
+
+
+
+
+
 
     View.prototype = {
         render: render,
@@ -355,25 +402,7 @@ function createElement(vnode) {
     if (vnode.type == 'text') {
         return document.createTextNode(vnode.children);
     }
-    //first check to see if component references a class name
-    if (
-        typeof vnode.type == 'function' &&
-        vnode.type.prototype &&
-        vnode.type.prototype.render
-    ) {
-        console.log('vNode is a class reference');
-        let obj = new vnode.type(vnode.props);
-        let render = obj.render();
-        let node = createElement(render);
-        //BACKTO
-        // Let the component know about its own root.
-        // obj.setRoot(node);
-        return node;
-    }
-    if (typeof vnode.type == 'function') {
-        let fn = vnode.type(vnode.props);
-        return createElement(fn);
-    }
+   
 
     var $el =
         vnode.type == 'Fragment'
@@ -418,10 +447,21 @@ function createElement(vnode) {
 
 View.createElement = createElement;
 
+
 /**
  * JSX parsing function.
  */
 function vNode(name, attributes, ...children) {
+
+    
+    let virtualNode = typeof name == 'function' ? vNodeCustomElement(name, attributes, children) : vNodeHtmlElement(name, attributes, children);
+
+    return virtualNode;
+}
+
+
+
+function vNodeHtmlElement(name, attributes, children) {
     attributes = attributes || {};
     let joined = [];
     if (
@@ -455,44 +495,41 @@ function vNode(name, attributes, ...children) {
 
 
 
+function vNodeCustomElement(name, attributes, children) {
 
+    attributes = attributes || {};
+    let joined = [];
 
-
-
-
-async function refresh() {
-    let hash;
-    let params;
-    [hash, params] = parseHash(window.location.hash);
-    let tree;
-    let c;
-
-    let elem = document.querySelector('#job-container');
-    if (elem) {
-        elem.removeEventListener('click', this.currentComponent);
+    if (
+        children.length == 0 ||
+        null == children[0] ||
+        typeof children[0] == 'undefined'
+    ) {
+        joined = [];
+    } else if (children.length == 1 && typeof children[0] == 'string') {
+        joined = children;
+    } else {
+        for (var i = 0; i < children.length; i++) {
+            if (Array.isArray(children[i])) {
+                joined = joined.concat(children[i]);
+            } else {
+                joined.push(children[i]);
+            }
+        }
     }
 
-    if (hash == '' || hash == '#') {
-        c = new JobList();
-    } else if (hash == '#new') {
-        c = new JobForm();
-    } else if (hash.startsWith('#edit')) {
-        c = new JobForm(params.id);
-    } else if (hash.startsWith('#details')) {
-        c = new JobSearch(params.id);
-    }
+    attributes.children = joined;
 
-    c.listenTo('click', '#job-container');
-    /*
-        Listen for submit events
-        c.listenTo("submit", "#record-form");
-        */
+    let vnode = name(attributes);
+    vnode.meta = {
+        synthetic: true,
+        type: name,
+        props: attributes
+    };
 
-    if (c.loadData) {
-        await c.loadData();
-    }
-    tree = c.render();
-
-    this.view.render(tree);
-    this.currentComponent = c;
+    return vnode;
 }
+
+
+
+
