@@ -103,13 +103,13 @@ function getEvaluator(oldHooks) {
 const View = (function () {
 
 
-    const NODE_CHANGED_STATES = [
+    const NODE_SHOULD_SWAP_STATES = [
         'NODE_NO_COMPARISON',
         'NODE_DIFFERENT_TYPE',
         'NODE_NOT_EQUAL',
         'NODE_DIFFERENT_ELEMENT',
-        'NODE_PROPS_CHANGED',
-        'TEXT_NODES_NOT_EQUAL'
+        'TEXT_NODES_NOT_EQUAL',
+        // 'NODE_PROPS_CHANGED'
     ];
 
     /**
@@ -199,7 +199,7 @@ const View = (function () {
         
         console.log("View: End render algorithm (" + this.renderCount + ").");
         this.renderCount++;
-        setTimeout(() => this.render(virtualNode, oldHooks), 1200);
+        setTimeout(() => this.render(virtualNode, oldHooks), 500);
     }
 
 
@@ -225,17 +225,23 @@ const View = (function () {
     function updateElement($parent, newNode, oldNode, index = 0) {
         let state = getChangeState(newNode, oldNode);
 
-        // Whether to use replaceChild to swap nodes.
-        let shouldSwapNodes = changed(state);
+        // Whether to swap nodes.
+        let shouldSwapNodes = NODE_SHOULD_SWAP_STATES.includes(state);
 
-        if ($parent.nodeType == 3) {
+
+        if ($parent.nodeType == 3)
+        {
+            console.warn("Parent node is a text node.");
             return;
         }
+
+
 
         if (!oldNode)
         {
             let n = createElement(newNode);
             $parent.appendChild(n);
+            return;
         }
 
 
@@ -248,20 +254,33 @@ const View = (function () {
             } else {
                 $parent.removeChild($parent.children[index]);
             }
+            return;
         }
 
 
-        else if (shouldSwapNodes)
+        // Need a better name here because when only the props have changed
+        // We aren't swapping the nodes, we are only modifying the HTML attributes.
+        else if("NODE_PROPS_CHANGED" == state)
+        {
+            updateElementAttributes($parent.childNodes[index], newNode);
+        }
+
+
+        // Otherwise, we are replacing the entire and children.
+        else if(shouldSwapNodes)
         {
             console.log("Swapping nodes: "+state);
+
             let n = createElement(newNode);
             console.log("oldNode:",oldNode, "newNode:",newNode);
             $parent.replaceChild(n, $parent.childNodes[index]);
         }
 
+        // Now we will recursively evaluate the children of the node.
+        // If the node has children, we will evaluate each child.
         // Not obvious, but text nodes don't have a type and should
         // have been handled before this block executes.
-        else if (newNode.type && newNode.children)
+        if(!shouldSwapNodes && newNode.type && newNode.children)
         {
             const newLength = newNode.children.length;
             const oldLength = oldNode.children.length;
@@ -277,6 +296,49 @@ const View = (function () {
             }
         }
     }
+
+
+    
+    function updateElementAttributes($el, newNode) {
+
+        // Remove old attributes not present in the new node.
+        for(let prop in $el.getAttributeNames()) {
+            if(!newNode.props[prop]) {
+                $el.removeAttribute(prop);
+            }
+        }
+
+
+        let names = Object.getOwnPropertyNames(newNode.props);
+        let values = newNode.props;
+
+        // Update remaining attributes.
+        for (let name of names) {
+
+            var html5 = 'className' == name ? 'class' : name;
+            if ('children' == name) continue;
+            if ('dangerouslySetInnerHTML' == name)
+            {
+                $el.innerHTML = values[name];
+                continue;
+            }
+            if (values[name] === null)
+            {
+                $el.setAttribute(html5, "true");
+                continue;
+            }
+            else if (html5.indexOf('on') === 0)
+            {
+                $el.addEventListener(name.substring(2), values[name]);
+                continue;
+            }
+            else
+            {
+                $el.setAttribute(html5, values[name]);
+            }
+        }
+    }
+
 
 
     /**
@@ -312,15 +374,6 @@ const View = (function () {
     }
 
 
-
-    /**
-     * 
-     * @param {*} state 
-     * @returns Boolean
-     */
-    function changed(state) {
-        return NODE_CHANGED_STATES.includes(state);
-    }
 
 
 
@@ -520,7 +573,11 @@ function vNodeCustomElement(name, attributes, children) {
 
     attributes.children = joined;
 
+    // We do need to evaluate the custom element function to get the vnode.
+    // If the return value is not an object we obviously can't assign
+    // properties to it.
     let vnode = name(attributes);
+
     vnode.meta = {
         synthetic: true,
         type: name,
