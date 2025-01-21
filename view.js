@@ -229,7 +229,7 @@ const View = (function () {
         let shouldSwapNodes = NODE_SHOULD_SWAP_STATES.includes(state);
 
 
-        if ($parent.nodeType == 3)
+        if ($parent.nodeType === Node.TEXT_NODE)
         {
             console.warn("Parent node is a text node.");
             return;
@@ -247,13 +247,11 @@ const View = (function () {
 
         else if (!newNode)
         {
-            if (!$parent.children[index]) {
-                $parent.removeChild(
-                    $parent.children[$parent.children.length - 1]
-                );
-            } else {
-                $parent.removeChild($parent.children[index]);
-            }
+
+            $parent.removeChild(
+                $parent.childNodes[$parent.childNodes.length - 1]
+            );
+
             return;
         }
 
@@ -262,7 +260,7 @@ const View = (function () {
         // We aren't swapping the nodes, we are only modifying the HTML attributes.
         else if("NODE_PROPS_CHANGED" == state)
         {
-            updateElementAttributes($parent.childNodes[index], newNode);
+            updateElementAttributes($parent.childNodes[index], newNode, oldNode);
         }
 
 
@@ -285,7 +283,7 @@ const View = (function () {
             const newLength = newNode.children.length;
             const oldLength = oldNode.children.length;
 
-            for (let i = 0; i < newLength || i < oldLength; i++) {
+            for (let i = 0; i < Math.max(newLength, oldLength); i++) {
                 let nextParent = $parent.childNodes[index];
                 let revisedNode = newNode.children[i];
                 let expiredNode = oldNode.children[i];
@@ -298,11 +296,12 @@ const View = (function () {
     }
 
 
+
     
-    function updateElementAttributes($el, newNode) {
+    function updateElementAttributes($el, newNode, oldNode) {
 
         // Remove old attributes not present in the new node.
-        for(let prop in $el.getAttributeNames()) {
+        for(let prop of $el.getAttributeNames()) {
             if(!newNode.props[prop]) {
                 $el.removeAttribute(prop);
             }
@@ -382,7 +381,7 @@ const View = (function () {
         let node2Props = node2.props;
 
         if (typeof node1Props != typeof node2Props) {
-            return true;
+            return false;
         }
 
         if (!node1Props && !node2Props) {
@@ -399,6 +398,7 @@ const View = (function () {
         for (let i = 0; i < aProps.length; i++) {
             let propName = aProps[i];
             if(propName == "children") continue;
+            if (propName.indexOf('on') === 0) continue;
 
             if (node1Props[propName] !== node2Props[propName]) {
                 return true;
@@ -535,6 +535,7 @@ function vNodeHtmlElement(name, attributes, children) {
         }
     }
 
+    joined = joined.filter(child => !!child);
     attributes.children = joined;
 
     var vnode = {
@@ -571,6 +572,7 @@ function vNodeCustomElement(name, attributes, children) {
         }
     }
 
+    joined = joined.filter(child => !!child);
     attributes.children = joined;
 
     // We do need to evaluate the custom element function to get the vnode.
