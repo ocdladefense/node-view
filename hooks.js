@@ -9,6 +9,13 @@ let hookIndex = 0;
 // registered in hooks.
 export const effects = [];
 
+let renderCount = 0;
+
+let states = {};
+
+
+
+
 export function resetHookIndex(index) {
     if (null != index)
     {
@@ -17,6 +24,8 @@ export function resetHookIndex(index) {
     }
     return ++hookIndex;
 }
+
+
 
 export function useState(initialValue) {
     // console.log("useState called.",idx);
@@ -31,6 +40,46 @@ export function useState(initialValue) {
     return [state, setState];
 }
 
+
+
+// Version 1.0.
+export function setState(key, value) {
+    states[key] = value;
+}
+
+
+// Version 1.0.
+export function getState(key) {
+    return states[key];
+}
+
+
+// Version 1.0.
+/*
+export function useState(key, initialValue) {
+    if (0 === renderCount && !(key in states))
+    {
+        states[key] = initialValue;
+    }
+    return states[key];
+}
+*/
+
+
+
+export function isStateChanged(previousStates, currentStates) {
+
+
+    let keys = Object.keys(currentStates);
+    for (let key of keys)
+    {
+        if (previousStates[key] !== currentStates[key])
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 
 export function useEffect(cb, deps) {
