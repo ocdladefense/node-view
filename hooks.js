@@ -1,31 +1,45 @@
+let renderCount = 0;
 
-// Store values related to all hooks in the order they are executed.
-export const hooks = [];
+let states = {};
 
 // Index of the current hook being executed.
 let hookIndex = 0;
+
+// Store values related to all hooks in the order they are executed.
+export const hooks = [];
 
 // Store effects in with the same indices as their dependencies
 // registered in hooks.
 export const effects = [];
 
-let renderCount = 0;
 
-let states = {};
-
-
-
-
-export function resetHookIndex(index) {
-    if (null != index)
-    {
-        hookIndex = 0;
-        return hookIndex;
-    }
-    return ++hookIndex;
+export function resetHookIndex(start = 0) {
+    hookIndex = start;
 }
 
 
+// Version 2.0.
+export function setState(key, value) {
+    states[key] = value;
+}
+
+
+// Version 2.0.
+export function getState(key) {
+    return states[key];
+}
+
+
+// Version 2.0.
+/*
+export function useState(key, initialValue) {
+    if (0 === renderCount && !(key in states))
+    {
+        states[key] = initialValue;
+    }
+    return states[key];
+}
+*/
 
 export function useState(initialValue) {
     // console.log("useState called.",idx);
@@ -39,31 +53,6 @@ export function useState(initialValue) {
     hookIndex++;
     return [state, setState];
 }
-
-
-
-// Version 1.0.
-export function setState(key, value) {
-    states[key] = value;
-}
-
-
-// Version 1.0.
-export function getState(key) {
-    return states[key];
-}
-
-
-// Version 1.0.
-/*
-export function useState(key, initialValue) {
-    if (0 === renderCount && !(key in states))
-    {
-        states[key] = initialValue;
-    }
-    return states[key];
-}
-*/
 
 
 
