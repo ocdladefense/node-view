@@ -1,0 +1,8 @@
+{
+    "name": "@ocdla/view",
+    "description": "Light-weight, virtual node library.",
+    "workspaces": [
+        "react",
+        "react-dom"
+    ]
+}
