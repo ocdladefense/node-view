@@ -5,6 +5,12 @@ let states = {};
 // Index of the current hook being executed.
 let hookIndex = 0;
 
+export { renderCount, states, hookIndex };
+
+export function incrementRenderCount() {
+    renderCount++;
+}
+
 // Store values related to all hooks in the order they are executed.
 export const hooks = [];
 

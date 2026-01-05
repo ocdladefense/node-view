@@ -1,12 +1,11 @@
-// import { hooks, isStateChanged, resetHookIndex, effects, getEvaluator } from "@ocdla/view/hooks.js";
-import { View } from "./View.js";
+import { hooks, isStateChanged, resetHookIndex, renderCount, incrementRenderCount, states, effects, getEvaluator } from "react";
+// import { View } from "./View.js";
 
 
 let currentRoot = null;
 
 
-// Version 1.0.
-/*
+// Version 2.0.
 export function createRoot(rootElement, props = {}) {
 
 
@@ -23,14 +22,14 @@ export function createRoot(rootElement, props = {}) {
                 // After executing the component function, new states will have been assigned to this modules states object.
                 rootElement.innerHTML = "";
                 rootElement.appendChild(renderTree);
-                renderCount++;
+                incrementRenderCount();
             }
 
             setTimeout(() => { render(component, previousStates); }, 500);
         }
     };
 }
-*/
+
 
 
 
@@ -40,6 +39,7 @@ export function createRoot(rootElement, props = {}) {
  * @param {string} selector
  * @returns {View}
  */
+/*
 export default function createRoot(selector, shouldReplaceRoot = false) {
     let elem =
         typeof selector == 'string'
@@ -50,7 +50,7 @@ export default function createRoot(selector, shouldReplaceRoot = false) {
 
     return new View(elem, shouldReplaceRoot);
 };
-
+*/
 
 
 
