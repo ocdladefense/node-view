@@ -31,7 +31,6 @@ export function getState(key) {
 
 
 // Version 2.0.
-/*
 export function useState(key, initialValue) {
     if (0 === renderCount && !(key in states))
     {
@@ -39,8 +38,11 @@ export function useState(key, initialValue) {
     }
     return states[key];
 }
-*/
 
+
+
+// Version 3.0.
+/*
 export function useState(initialValue) {
     // console.log("useState called.",idx);
     const state = hooks[hookIndex] || initialValue;
@@ -53,7 +55,7 @@ export function useState(initialValue) {
     hookIndex++;
     return [state, setState];
 }
-
+*/
 
 
 export function isStateChanged(previousStates, currentStates) {
@@ -71,6 +73,8 @@ export function isStateChanged(previousStates, currentStates) {
 }
 
 
+// Version 3.0.
+/*
 export function useEffect(cb, deps) {
     console.log("UseEffect called.", hookIndex);
     effects[hookIndex] = cb;
@@ -78,9 +82,10 @@ export function useEffect(cb, deps) {
 
     hookIndex++;
 }
+*/
 
-
-
+// Version 3.0.
+/*
 export function getEvaluator(oldHooks) {
 
     return function evaluateEffect(fn, index) {
@@ -128,4 +133,4 @@ export function getEvaluator(oldHooks) {
         }
     };
 }
-
+*/
