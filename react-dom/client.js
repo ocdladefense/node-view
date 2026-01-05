@@ -1,34 +1,6 @@
-import { hooks, isStateChanged, resetHookIndex, renderCount, incrementRenderCount, states, effects, getEvaluator } from "react";
-// import { View } from "./View.js";
+import { View } from "./View.js";
 
 
-let currentRoot = null;
-
-
-// Version 2.0.
-export function createRoot(rootElement, props = {}) {
-
-
-    return {
-        render: function render(component, previousStates = {}) {
-            let renderTree;
-
-
-            if (renderCount === 0 || isStateChanged(previousStates, states))
-            {
-                console.log("Render count: ", renderCount);
-                previousStates = { ...states };
-                renderTree = component(props);
-                // After executing the component function, new states will have been assigned to this modules states object.
-                rootElement.innerHTML = "";
-                rootElement.appendChild(renderTree);
-                incrementRenderCount();
-            }
-
-            setTimeout(() => { render(component, previousStates); }, 500);
-        }
-    };
-}
 
 
 
@@ -39,7 +11,6 @@ export function createRoot(rootElement, props = {}) {
  * @param {string} selector
  * @returns {View}
  */
-/*
 export default function createRoot(selector, shouldReplaceRoot = false) {
     let elem =
         typeof selector == 'string'
@@ -50,7 +21,6 @@ export default function createRoot(selector, shouldReplaceRoot = false) {
 
     return new View(elem, shouldReplaceRoot);
 };
-*/
 
 
 
